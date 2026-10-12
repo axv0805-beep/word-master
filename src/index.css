@@ -1,0 +1,300 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── 设计令牌：浅色 / 深色通过 CSS 变量切换，组件样式统一语义化 ── */
+:root {
+  --bg: #f5f6fb;
+  --bg-accent-1: rgba(99, 102, 241, 0.18);
+  --bg-accent-2: rgba(236, 72, 153, 0.14);
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: rgba(99, 102, 241, 0.08);
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.16);
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --shadow: 0 10px 30px -18px rgba(15, 23, 42, 0.35);
+  --tabbar: rgba(255, 255, 255, 0.86);
+  --correct: #10b981;
+  --wrong: #f43f5e;
+}
+
+.dark {
+  --bg: #080d17;
+  --bg-accent-1: rgba(99, 102, 241, 0.28);
+  --bg-accent-2: rgba(236, 72, 153, 0.16);
+  --surface: rgba(30, 41, 59, 0.72);
+  --surface-2: rgba(51, 65, 85, 0.45);
+  --surface-3: rgba(99, 102, 241, 0.14);
+  --border: rgba(148, 163, 184, 0.16);
+  --border-strong: rgba(148, 163, 184, 0.3);
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+  --shadow: 0 18px 44px -24px rgba(0, 0, 0, 0.9);
+  --tabbar: rgba(15, 23, 42, 0.82);
+  --correct: #34d399;
+  --wrong: #fb7185;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  input,
+  textarea {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  /* 全屏装饰背景：两团柔光渐变，贴近万词王的氛围感。
+     必须保持为空元素并禁用指针事件，不能包住应用内容（会导致点击被遮挡）。 */
+  .app-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(1000px 520px at 12% -8%, var(--bg-accent-1), transparent 62%),
+      radial-gradient(820px 460px at 96% 4%, var(--bg-accent-2), transparent 58%),
+      var(--bg);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+  }
+
+  .card-flat {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+  }
+
+  .card-brand {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 52%, #ec4899 100%);
+    border: none;
+    border-radius: 1.5rem;
+    color: #fff;
+    box-shadow: 0 20px 44px -22px rgba(99, 102, 241, 0.9);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    font-weight: 600;
+    /* 按钮文字不允许折行，否则窄屏上会被压成「开始学/习」 */
+    white-space: nowrap;
+    transition:
+      transform 140ms ease,
+      filter 140ms ease,
+      background-color 140ms ease;
+    user-select: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    box-shadow: 0 12px 26px -14px rgba(99, 102, 241, 0.95);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.07);
+  }
+
+  .btn-soft {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .btn-md {
+    padding: 0.7rem 1.15rem;
+    font-size: 0.95rem;
+  }
+
+  .btn-lg {
+    padding: 0.95rem 1.5rem;
+    font-size: 1.02rem;
+  }
+
+  .btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.34rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 140ms ease;
+  }
+
+  .chip-active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border-color: transparent;
+  }
+
+  .muted {
+    color: var(--text-muted);
+  }
+
+  .faint {
+    color: var(--text-faint);
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+  }
+
+  .input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 0.9rem;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+
+  .input:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+  }
+
+  /* 4 选 1 选项按钮 */
+  .option {
+    width: 100%;
+    text-align: left;
+    padding: 0.95rem 1.1rem;
+    border-radius: 1rem;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    font-size: 1rem;
+    line-height: 1.45;
+    cursor: pointer;
+    transition:
+      transform 120ms ease,
+      border-color 140ms ease,
+      background-color 140ms ease;
+  }
+
+  .option:hover:not(:disabled) {
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+
+  .option:active:not(:disabled) {
+    transform: scale(0.99);
+  }
+
+  .option-correct {
+    border-color: var(--correct) !important;
+    background: color-mix(in srgb, var(--correct) 16%, transparent) !important;
+  }
+
+  .option-wrong {
+    border-color: var(--wrong) !important;
+    background: color-mix(in srgb, var(--wrong) 16%, transparent) !important;
+  }
+
+  .tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0 auto;
+    max-width: 480px;
+    background: var(--tabbar);
+    backdrop-filter: blur(18px);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .phone-shell {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100%;
+    position: relative;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+  }
+
+  /* 骨架屏 */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+    border-radius: 0.75rem;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

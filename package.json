@@ -1,0 +1,43 @@
+{
+  "name": "word-master",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "单词王 - 手机优先的背单词 Web App（四级/六级/高考/中考）",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fetch-dicts": "node scripts/fetch-dicts.mjs",
+    "verify-dicts": "node scripts/verify-dicts.mjs",
+    "verify": "node scripts/verify-dicts.mjs && tsc --noEmit && vitest run && vite build",
+    "verify:ui": "node scripts/verify-ui.mjs",
+    "verify:all": "node scripts/verify-dicts.mjs && tsc --noEmit && vitest run && vite build && node scripts/verify-ui.mjs"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.28.0",
+    "zustand": "4.5.5"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/react": "16.0.1",
+    "@types/node": "22.9.0",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.3",
+    "autoprefixer": "10.4.20",
+    "jsdom": "25.0.1",
+    "playwright-core": "1.49.0",
+    "postcss": "8.4.47",
+    "tailwindcss": "3.4.14",
+    "typescript": "5.6.3",
+    "vite": "5.4.10",
+    "vite-plugin-pwa": "0.20.5",
+    "vitest": "2.1.4"
+  }
+}

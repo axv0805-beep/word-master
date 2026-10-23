@@ -17,8 +17,8 @@ LEGACY = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 ADAPTIVE = {"mdpi": 108, "hdpi": 162, "xhdpi": 216, "xxhdpi": 324, "xxxhdpi": 432}
 
 # 图形宽度占画布比例：legacy 大一些更醒目；自适应前景压进 66dp 安全区
-LEGACY_RATIO = 0.66
-FOREGROUND_RATIO = 0.56
+LEGACY_RATIO = 0.54
+FOREGROUND_RATIO = 0.45
 PLATE_TOP, PLATE_BOTTOM = "#FCFEFB", "#EFF8EA"
 
 ADAPTIVE_XML = """<?xml version="1.0" encoding="utf-8"?>

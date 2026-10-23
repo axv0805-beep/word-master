@@ -14,8 +14,8 @@ ICONS = ROOT / "public" / "icons"
 BUILD = ROOT / "build"
 
 # 图形宽度占画布比例：普通图标留白少一点更醒目，maskable 要压进 80% 安全区
-ICON_RATIO = 0.68
-MASKABLE_RATIO = 0.56
+ICON_RATIO = 0.58
+MASKABLE_RATIO = 0.46
 PLATE_TOP, PLATE_BOTTOM = "#FCFEFB", "#EFF8EA"
 
 

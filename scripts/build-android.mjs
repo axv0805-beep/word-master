@@ -51,15 +51,41 @@ function copyTree(from, to, skip = SKIP_DIRS) {
 }
 
 const skipBuild = process.argv.includes('--no-build')
+
+// 版本号以 android/app/build.gradle 为唯一来源；发版前把它 +1
+const gradleFile = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8')
+const versionCode = Number((/versionCode\s+(\d+)/.exec(gradleFile) || [])[1] || 1)
+const versionName = ((/versionName\s+'([^']+)'/.exec(gradleFile) || [])[1] || '1.0.0')
+const apkName = `cimiao-${versionName}.apk`
+const publicDownload = path.join(root, 'public', 'download')
+
+console.log(`[1/6] 写 version.json（v${versionName} / code ${versionCode}）`)
+fs.mkdirSync(publicDownload, { recursive: true })
+fs.writeFileSync(
+  path.join(root, 'public', 'version.json'),
+  JSON.stringify(
+    {
+      versionCode,
+      versionName,
+      url: `./download/${apkName}`,
+      notes: process.env.UPDATE_NOTES || '细节优化与问题修复，更新后学习进度与设置都会保留。',
+      publishedAt: new Date().toISOString().slice(0, 10)
+    },
+    null,
+    2
+  ) + '\n',
+  'utf8'
+)
+
 if (!skipBuild) {
-  console.log('[1/5] 构建 web 产物')
+  console.log('[2/6] 构建 web 产物')
   // Windows 上 .cmd 必须经 shell 启动（Node 22 起禁止直接 spawn .cmd）
   run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], {
     shell: process.platform === 'win32'
   })
 }
 
-console.log('[2/5] 复制安卓工程到 ASCII 暂存区')
+console.log('[3/6] 复制安卓工程到 ASCII 暂存区')
 fs.rmSync(stage, { recursive: true, force: true })
 fs.mkdirSync(stage, { recursive: true })
 for (const file of ['settings.gradle', 'build.gradle', 'gradle.properties']) {
@@ -67,14 +93,14 @@ for (const file of ['settings.gradle', 'build.gradle', 'gradle.properties']) {
 }
 copyTree(sourceApp, stageApp)
 
-console.log('[3/5] 拷贝 dist 到 assets/www')
+console.log('[4/6] 拷贝 dist 到 assets/www')
 const wwwDir = path.join(stageApp, 'src', 'main', 'assets', 'www')
 fs.rmSync(wwwDir, { recursive: true, force: true })
 fs.mkdirSync(wwwDir, { recursive: true })
 // download/ 是给网页端下载 APK 用的，别塞进 APK 自己
 copyTree(path.join(root, 'dist'), wwwDir, new Set(['download']))
 
-console.log('[4/5] Gradle assembleDebug')
+console.log('[5/6] Gradle assembleDebug')
 fs.writeFileSync(path.join(stage, 'local.properties'), `sdk.dir=${sdkDir.replace(/\\/g, '/')}\n`, 'utf8')
 if (!fs.existsSync(gradleBin)) throw new Error(`找不到 Gradle：${gradleBin}`)
 if (!fs.existsSync(sdkDir)) throw new Error(`找不到 Android SDK：${sdkDir}`)
@@ -88,9 +114,20 @@ run(gradleBin, ['assembleDebug', '--no-daemon', '--console=plain'], {
   }
 })
 
-console.log('[5/5] 输出 APK')
+console.log('[5/6] 输出到 release/')
 if (!fs.existsSync(apkSrc)) throw new Error(`未生成 APK：${apkSrc}`)
 fs.mkdirSync(path.dirname(apkOut), { recursive: true })
 fs.copyFileSync(apkSrc, apkOut)
+
+console.log('[6/6] 发布到 public/download（随站点提供，供应用内更新与手动下载）')
+for (const target of [
+  path.join(publicDownload, apkName),
+  path.join(publicDownload, 'latest.apk'),
+  path.join(root, 'dist', 'download', apkName),
+  path.join(root, 'dist', 'download', 'latest.apk')
+]) {
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.copyFileSync(apkOut, target)
+}
 const size = (fs.statSync(apkOut).size / 1024 / 1024).toFixed(1)
-console.log(`完成：${apkOut}（${size} MB）`)
+console.log(`完成：${apkOut}（${size} MB），站点地址 ./download/${apkName}`)

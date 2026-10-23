@@ -1,7 +1,7 @@
 {
   "name": "word-master",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "electron/main.cjs",
   "description": "词芽 - 手机优先的背单词 Web App（四级/六级/高考/中考）",

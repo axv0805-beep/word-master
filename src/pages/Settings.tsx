@@ -9,12 +9,7 @@ import { MIN_ROUND_SIZE, ROUND_SIZE_STEP, maxRoundSizeFor } from '../core/consta
 import { buildStudyPlan, formatFinishDate } from '../core/plan'
 import { THEMES, themeById } from '../core/theme'
 import type { MistakeReplayMode, QuestionType } from '../core/types'
-
-/** 安卓 WebView 壳里已经有原生应用，不需要再提供 APK 下载 */
-function isNativeShell(): boolean {
-  if (typeof window === 'undefined') return false
-  return !!(window as unknown as { AndroidSpeech?: unknown }).AndroidSpeech
-}
+import { APP_VERSION, UPDATE_MANIFEST_URL, isNativeShell, nativeApp, requestUpdateCheck } from '../core/native'
 
 const QUESTION_TYPES: Array<{ value: QuestionType; label: string; hint: string }> = [
   { value: 'zh2en', label: '看中选英', hint: '给中文意思，选英文单词 4 选 1' },
@@ -107,6 +102,49 @@ export function SettingsPage() {
   const showToast = useToast((state) => state.show)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [confirmReset, setConfirmReset] = useState<'progress' | 'all' | null>(null)
+  const app = nativeApp()
+  const [checking, setChecking] = useState(false)
+  const [update, setUpdate] = useState<{
+    versionCode: number
+    versionName: string
+    url: string
+    notes?: string
+  } | null>(null)
+
+  function checkUpdate() {
+    if (!app) return
+    setChecking(true)
+    const started = requestUpdateCheck({
+      onAvailable: (raw) => {
+        setChecking(false)
+        try {
+          const info = JSON.parse(raw) as {
+            versionCode: number
+            versionName: string
+            url: string
+            notes?: string
+          }
+          setUpdate({ ...info, url: new URL(info.url, UPDATE_MANIFEST_URL).href })
+          showToast(`发现新版本 v${info.versionName}`)
+        } catch {
+          showToast('版本信息解析失败', 'error')
+        }
+      },
+      onNone: () => {
+        setChecking(false)
+        setUpdate(null)
+        showToast('已经是最新版本')
+      },
+      onError: () => {
+        setChecking(false)
+        showToast('检查更新失败，请检查网络后重试', 'error')
+      }
+    })
+    if (!started) {
+      setChecking(false)
+      showToast('当前环境不支持检查更新', 'error')
+    }
+  }
 
   const plan = useMemo(() => {
     const book = books.find((item) => item.id === settings.bookId)
@@ -456,7 +494,9 @@ export function SettingsPage() {
           />
           <div>
             <div style={{ fontWeight: 700 }}>词芽 · 背单词</div>
-            <div className="faint" style={{ fontSize: '0.72rem' }}>版本 1.0.0 · 手机优先的离线词卡应用</div>
+            <div className="faint" style={{ fontSize: '0.72rem' }}>
+              版本 {app ? app.versionName() : APP_VERSION} · 手机优先的离线词卡应用
+            </div>
           </div>
         </div>
         <div className="divider my-1" />
@@ -474,8 +514,8 @@ export function SettingsPage() {
         </p>
         {!isNativeShell() && (
           <a
-            href={`${import.meta.env.BASE_URL}download/cimiao-1.0.0.apk`}
-            download="词芽-1.0.0.apk"
+            href={`${import.meta.env.BASE_URL}download/latest.apk`}
+            download="词芽.apk"
             className="flex items-center gap-3"
             style={{
               padding: '10px 12px',
@@ -502,11 +542,76 @@ export function SettingsPage() {
             <span className="flex-1">
               <span style={{ display: 'block', fontWeight: 600, fontSize: '0.86rem' }}>下载安卓安装包</span>
               <span className="faint" style={{ display: 'block', fontSize: '0.72rem', marginTop: 2 }}>
-                APK · 1.3 MB · 传到手机点开即装
+                APK · 传到手机点开即装
               </span>
             </span>
             <Icon name="chevronRight" size={16} className="faint" />
           </a>
+        )}
+        {app && (
+          <div className="flex flex-col gap-2.5">
+            <div
+              className="flex items-center gap-3"
+              style={{ padding: '10px 12px', borderRadius: 14, background: 'var(--surface-2)' }}
+            >
+              <span
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 11,
+                  background: 'var(--brand-soft)',
+                  color: 'var(--brand-2)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <Icon name="refresh" size={17} />
+              </span>
+              <span className="flex-1">
+                <span style={{ display: 'block', fontWeight: 600, fontSize: '0.86rem' }}>检查更新</span>
+                <span className="faint" style={{ display: 'block', fontSize: '0.72rem', marginTop: 2 }}>
+                  {update ? `可更新到 v${update.versionName}` : `当前 v${app.versionName()} · 应用内覆盖安装`}
+                </span>
+              </span>
+              <button
+                type="button"
+                className="btn btn-soft btn-sm"
+                disabled={checking}
+                onClick={checkUpdate}
+              >
+                {checking ? '检查中…' : update ? '重新检查' : '检查'}
+              </button>
+            </div>
+            {update && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 14,
+                  border: '1px solid var(--brand-2)',
+                  background: 'var(--brand-soft)'
+                }}
+              >
+                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>v{update.versionName} 可用</div>
+                {update.notes && (
+                  <p className="muted" style={{ fontSize: '0.76rem', marginTop: 4, lineHeight: 1.6 }}>
+                    {update.notes}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-md w-full mt-3"
+                  onClick={() => {
+                    app.installUpdate(update.url)
+                    showToast('开始下载，下载完成后按系统提示安装')
+                  }}
+                >
+                  <Icon name="download" size={16} />
+                  立即更新
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
       <div style={{ height: 16 }} />

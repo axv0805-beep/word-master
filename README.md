@@ -63,7 +63,19 @@ npm run package:android
 
 产物：`release/词芽-安卓.apk`。传到手机点开安装即可（系统会提示「未知来源」，选择允许）。
 
-> 已经部署好的站点也带了安装包：[下载 词芽-1.0.0.apk](https://axv0805-beep.github.io/word-master/download/cimiao-1.0.0.apk)（1.3 MB），手机上打开这个链接直接下载。
+> 已经部署好的站点也带了安装包：[下载最新版 APK](https://axv0805-beep.github.io/word-master/download/latest.apk)（1.3 MB），手机上打开这个链接直接下载。
+
+#### 应用内更新
+
+装过一次之后就不用再手动找安装包了：
+
+1. 设置 → 关于 →「检查更新」，原生侧会去读站点上的 [`version.json`](https://axv0805-beep.github.io/word-master/version.json)
+2. 有新版就点「立即更新」，APK 下载到缓存目录后自动拉起系统安装器
+3. 覆盖安装即可，学习记录和设置都存在 WebView 的 localStorage 里，不会丢
+
+发版时只要改 `android/app/build.gradle` 的 `versionCode`（+1）和 `versionName`，再跑一次 `npm run package:android`——脚本会顺手更新 `public/version.json`、把 APK 发到 `public/download/`，推上去就生效。
+
+> 首次点「立即更新」时系统会问是否允许「词芽」安装应用（Android 8+ 的未知来源限制），允许一次即可。
 
 首次构建依赖本地工具链，都在项目外（不进仓库）：
 

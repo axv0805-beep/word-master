@@ -4,6 +4,8 @@
  * 所有能力都做可用性判断，任何环节不可用时静默降级，不阻塞答题。
  */
 
+import { androidSpeech } from './native'
+
 export interface SpeakOptions {
   accent: 'us' | 'uk'
   /** 是否尝试在线真人发音 */
@@ -12,17 +14,6 @@ export interface SpeakOptions {
 
 let cachedVoices: SpeechSynthesisVoice[] = []
 let audioEl: HTMLAudioElement | null = null
-
-/** 安卓壳注入的原生发音桥（WebView 没有 Web Speech API） */
-interface AndroidSpeechBridge {
-  speak(text: string, lang: string, rate: number): void
-  stop(): void
-}
-
-function androidSpeech(): AndroidSpeechBridge | undefined {
-  if (typeof window === 'undefined') return undefined
-  return (window as unknown as { AndroidSpeech?: AndroidSpeechBridge }).AndroidSpeech
-}
 
 export function isSpeechSupported(): boolean {
   if (typeof window === 'undefined') return false

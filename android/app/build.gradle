@@ -10,8 +10,9 @@ android {
     applicationId 'com.cimiao.app'
     minSdk 23
     targetSdk 34
-    versionCode 1
-    versionName '1.0.0'
+    // 更新时把 versionCode +1（应用内「检查更新」用它和站点上的 version.json 比较）
+    versionCode 2
+    versionName '1.1.0'
   }
 
   buildTypes {

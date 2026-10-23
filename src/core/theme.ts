@@ -1,4 +1,5 @@
 import type { ThemeId } from './types'
+import { syncBarIcons } from './native'
 
 export type ThemeMode = 'dark' | 'light'
 
@@ -100,4 +101,6 @@ export function applyTheme(id: ThemeId, root: HTMLElement = document.documentEle
   root.style.colorScheme = theme.mode
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', theme.themeColor)
+  // 安卓壳：状态栏图标要跟着主题明暗走，否则浅色主题上是白图标（看不见）
+  syncBarIcons(theme.mode)
 }

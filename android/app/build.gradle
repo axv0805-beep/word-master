@@ -11,8 +11,8 @@ android {
     minSdk 23
     targetSdk 34
     // 更新时把 versionCode +1（应用内「检查更新」用它和站点上的 version.json 比较）
-    versionCode 5
-    versionName '1.1.3'
+    versionCode 6
+    versionName '1.1.4'
   }
 
   buildTypes {
@@ -34,4 +34,6 @@ android {
 dependencies {
   // WebViewAssetLoader：把打包进 assets 的前端当 https:// 站点加载，避开 file:// 的 CORS 限制
   implementation 'androidx.webkit:webkit:1.11.0'
+  // WindowCompat / WindowInsetsControllerCompat：状态栏透明化与图标明暗随主题切换
+  implementation 'androidx.core:core:1.13.1'
 }

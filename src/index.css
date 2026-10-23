@@ -529,7 +529,8 @@
     -webkit-backdrop-filter: blur(24px) saturate(160%);
     border-top: 1px solid var(--border);
     box-shadow: 0 -20px 44px -34px var(--scrim-deep);
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    /* 底部手势条/导航栏高度：优先用原生桥注入的值 */
+    padding-bottom: max(var(--safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
   }
 
   .tab-link {
@@ -593,6 +594,9 @@
     margin: 0 auto;
     min-height: 100%;
     position: relative;
+    /* 安卓壳里状态栏透明，页面顶到最上沿；用系统栏高度把内容让出来。
+       --safe-top 由原生桥注入，网页端为 0，桌面与浏览器布局不受影响。 */
+    padding-top: max(var(--safe-top, 0px), env(safe-area-inset-top, 0px));
   }
 
   .hide-scrollbar::-webkit-scrollbar {

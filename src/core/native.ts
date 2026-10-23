@@ -4,7 +4,7 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.3'
+export const APP_VERSION = '1.1.4'
 
 /**
  * 应用内更新检查的地址。
@@ -26,6 +26,11 @@ export interface AndroidAppBridge {
   checkUpdate(): void
   /** 下载并拉起系统安装器（覆盖安装，学习数据保留） */
   installUpdate(url: string): void
+  /** 状态栏/导航栏图标明暗：浅色主题传 true（深色图标） */
+  setBarIcons?(darkIcons: boolean): void
+  /** 系统栏高度（CSS px），页面加载瞬间先用它占位 */
+  statusBarHeight?(): number
+  navigationBarHeight?(): number
 }
 
 /** 原生检查更新的三种回调（安卓壳通过 evaluateJavascript 调用） */
@@ -76,4 +81,38 @@ export function nativeApp(): AndroidAppBridge | undefined {
 /** 是否跑在安卓壳里（此时不需要再给用户下载 APK 的入口） */
 export function isNativeShell(): boolean {
   return !!androidSpeech() || !!nativeApp()
+}
+
+/**
+ * 把系统栏高度写进 CSS 变量，页面用它们给状态栏/手势条留白。
+ * 安卓壳在视口变化时也会调 window.__setSafeArea，所以这里只做初始值与安装回调。
+ */
+export function installSafeArea(): void {
+  if (typeof window === 'undefined') return
+  const w = window as unknown as { __setSafeArea?: (top: number, bottom: number) => void }
+  const set = (top: number, bottom: number) => {
+    const root = document.documentElement
+    root.style.setProperty('--safe-top', `${Math.max(0, Math.round(top))}px`)
+    root.style.setProperty('--safe-bottom', `${Math.max(0, Math.round(bottom))}px`)
+  }
+  w.__setSafeArea = set
+
+  const app = nativeApp()
+  if (!app) return
+  try {
+    set(app.statusBarHeight?.() ?? 0, app.navigationBarHeight?.() ?? 0)
+  } catch {
+    /* 老版本壳没有这两个方法，退化成 0，等 insets 回调补上 */
+  }
+}
+
+/** 状态栏图标跟随主题明暗：浅色背景要深色图标 */
+export function syncBarIcons(mode: 'light' | 'dark'): void {
+  const app = nativeApp()
+  if (!app?.setBarIcons) return
+  try {
+    app.setBarIcons(mode === 'light')
+  } catch {
+    /* 忽略：网页端没有桥或老版本壳不支持 */
+  }
 }

@@ -1,7 +1,7 @@
 {
-  "versionCode": 5,
-  "versionName": "1.1.3",
-  "url": "./download/cimiao-1.1.3.apk",
-  "notes": "新增「小学核心词」词书：人教版小学英语 3–6 年级 8 册合并去重，共 819 个词条。",
+  "versionCode": 6,
+  "versionName": "1.1.4",
+  "url": "./download/cimiao-1.1.4.apk",
+  "notes": "状态栏改为透明：页面配色一直铺到屏幕最上沿，不再有白色横条；状态栏图标会跟着主题明暗自动切换。",
   "publishedAt": "2026-10-23"
 }

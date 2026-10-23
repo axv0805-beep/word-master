@@ -22,6 +22,10 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import java.io.File;
@@ -42,6 +46,9 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private TextToSpeech tts;
+    /** 系统栏实际占用的像素高度，读取后换算成 CSS px 推给网页 */
+    private int statusInsetPx = 0;
+    private int navInsetPx = 0;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -49,11 +56,12 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         Window window = getWindow();
-        window.setStatusBarColor(BG);
-        window.setNavigationBarColor(BG);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-        }
+        // 状态栏透明、页面内容延伸到状态栏下方：顶部不再出现一条与主题不符的白带，
+        // 页面自己的渐变背景会一直铺到屏幕最上沿。
+        WindowCompat.setDecorFitsSystemWindows(window, false);
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(Color.TRANSPARENT);
+        applyBarIcons(true);
 
         webView = new WebView(this);
         webView.setBackgroundColor(BG);
@@ -92,7 +100,37 @@ public class MainActivity extends Activity {
         webView.addJavascriptInterface(new AppBridge(), "AndroidApp");
 
         setContentView(webView);
+        // 状态栏区域交给页面自行铺满；键盘弹出时用 padding 压小 WebView 视口，
+        // 等价于 adjustResize（edge-to-edge 下系统不再自动 resize）。
+        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, insets) -> {
+            statusInsetPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            navInsetPx = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+            int ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            webView.setPadding(0, 0, 0, Math.max(0, ime));
+            pushSafeArea();
+            return WindowInsetsCompat.CONSUMED;
+        });
         webView.loadUrl(START_URL);
+    }
+
+    /** 状态栏/导航栏图标明暗：浅色主题要深色图标，深色主题要浅色图标 */
+    private void applyBarIcons(boolean darkIcons) {
+        WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        controller.setAppearanceLightStatusBars(darkIcons);
+        controller.setAppearanceLightNavigationBars(darkIcons);
+    }
+
+    /** 把系统栏高度（CSS px）推给网页，网页据此设置 --safe-top / --safe-bottom */
+    private void pushSafeArea() {
+        float density = getResources().getDisplayMetrics().density;
+        int top = Math.round(statusInsetPx / density);
+        int bottom = Math.round(navInsetPx / density);
+        webView.post(() -> {
+            if (webView == null) return;
+            webView.evaluateJavascript(
+                    "window.__setSafeArea && window.__setSafeArea(" + top + "," + bottom + ")", null);
+        });
     }
 
     /** 暴露给网页的发音桥：window.AndroidSpeech */
@@ -117,6 +155,22 @@ public class MainActivity extends Activity {
 
     /** 暴露给网页的应用信息桥与更新器：window.AndroidApp */
     private class AppBridge {
+        /** 换主题时同步状态栏/导航栏图标的明暗（true = 深色图标） */
+        @JavascriptInterface
+        public void setBarIcons(final boolean darkIcons) {
+            runOnUiThread(() -> MainActivity.this.applyBarIcons(darkIcons));
+        }
+
+        @JavascriptInterface
+        public int statusBarHeight() {
+            return Math.round(statusInsetPx / getResources().getDisplayMetrics().density);
+        }
+
+        @JavascriptInterface
+        public int navigationBarHeight() {
+            return Math.round(navInsetPx / getResources().getDisplayMetrics().density);
+        }
+
         @JavascriptInterface
         public int versionCode() {
             try {

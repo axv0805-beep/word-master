@@ -5,6 +5,7 @@
  *
  * 版本号的唯一来源是 android/app/build.gradle 的 versionCode / versionName。
  */
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -39,6 +40,17 @@ export function syncAppVersion(versionName, root = ROOT) {
   return true
 }
 
+/**
+ * 安装包的 sha256（64 位小写十六进制）。
+ * 写进 version.json 后，安卓端下载完会拿它校验一遍：站点缓存/CDN 返回半截文件时能当场发现，
+ * 而不是等系统安装器报「解析失败」。
+ */
+export function sha256Of(file) {
+  const hash = crypto.createHash('sha256')
+  hash.update(fs.readFileSync(file))
+  return hash.digest('hex')
+}
+
 function readManifest(root = ROOT) {
   try {
     return JSON.parse(fs.readFileSync(path.join(root, 'public', 'version.json'), 'utf8'))
@@ -51,7 +63,10 @@ function readManifest(root = ROOT) {
  * 写 public/version.json —— 站点上的更新清单，应用内「检查更新」读的就是它。
  * 没显式给 notes 时沿用上一版的说明：CI 里没填更新说明不会把人工写好的文案冲成默认值。
  */
-export function writeVersionManifest({ versionCode, versionName, apkName, notes, publishedAt }, root = ROOT) {
+export function writeVersionManifest(
+  { versionCode, versionName, apkName, notes, publishedAt, sha256 },
+  root = ROOT
+) {
   const file = path.join(root, 'public', 'version.json')
   const previous = readManifest(root)
   const manifest = {
@@ -61,6 +76,8 @@ export function writeVersionManifest({ versionCode, versionName, apkName, notes,
     notes: notes || previous?.notes || DEFAULT_NOTES,
     publishedAt: publishedAt || new Date().toISOString().slice(0, 10)
   }
+  // 只有真的知道摘要时才写这个字段：老版本 App 不认识它，多一个字段无副作用
+  if (sha256) manifest.sha256 = sha256
   fs.mkdirSync(path.dirname(file), { recursive: true })
   fs.writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
   return { file, manifest }
@@ -88,5 +105,5 @@ export function publishApk(apkPath, { root = ROOT, extraDirs = [] } = {}) {
     fs.copyFileSync(apkPath, target)
   }
   const size = (fs.statSync(apkPath).size / 1024 / 1024).toFixed(1)
-  return { versionCode, versionName, apkName, targets, size }
+  return { versionCode, versionName, apkName, targets, size, sha256: sha256Of(apkPath) }
 }

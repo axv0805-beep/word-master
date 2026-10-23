@@ -4,7 +4,7 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.7'
+export const APP_VERSION = '1.1.8'
 
 /**
  * 应用内更新检查的地址。
@@ -24,8 +24,10 @@ export interface AndroidAppBridge {
   versionName(): string
   /** 交给原生去请求 version.json，结果通过 window.__update* 回调返回 */
   checkUpdate(): void
-  /** 下载并拉起系统安装器（覆盖安装，学习数据保留） */
-  installUpdate(url: string): void
+  /** 下载并拉起系统安装器（覆盖安装，学习数据保留）；sha256 非空时原生会校验安装包完整性 */
+  installUpdate(url: string, sha256?: string): void
+  /** 当前下载状态（JSON 字符串）：进程被杀后重新打开页面时用它恢复进度条 */
+  getUpdateState?(): string
   /** 状态栏/导航栏图标明暗：浅色主题传 true（深色图标） */
   setBarIcons?(darkIcons: boolean): void
   /** 系统栏高度（CSS px），页面加载瞬间先用它占位 */
@@ -48,7 +50,11 @@ export interface UpdateCallbacks {
  * 这样拿不到 Content-Length 时也能退化成不确定进度条。
  */
 export interface UpdateProgress {
-  phase: 'downloading' | 'verifying' | 'installing' | 'failed' | 'done'
+  /**
+   * paused 只由页面产生（不是原生事件）：上次没下完、缓存里还留着可续传的片段时用它，
+   * 告诉用户「进度还在，点继续下载接着下」。
+   */
+  phase: 'downloading' | 'verifying' | 'installing' | 'failed' | 'done' | 'paused'
   /** 已下载字节数 */
   received?: number
   /** 总字节数；-1 表示服务器没给 Content-Length */
@@ -66,6 +72,34 @@ const UPDATE_PHASES: ReadonlyArray<UpdateProgress['phase']> = [
   'failed',
   'done'
 ]
+
+/** 原生推到网页的下载状态：缓存里的续传片段与是否有线程在跑 */
+export interface UpdateDownloadState {
+  received: number
+  total: number
+  running: boolean
+  partial: boolean
+}
+
+/** 读原生侧「下到一半」的状态；网页端（没有安卓桥）返回 null */
+export function readUpdateDownloadState(): UpdateDownloadState | null {
+  const app = nativeApp()
+  if (!app || typeof app.getUpdateState !== 'function') return null
+  try {
+    const raw = app.getUpdateState()
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<UpdateDownloadState> | null
+    if (!parsed) return null
+    return {
+      received: typeof parsed.received === 'number' ? parsed.received : 0,
+      total: typeof parsed.total === 'number' ? parsed.total : -1,
+      running: parsed.running === true,
+      partial: parsed.partial === true
+    }
+  } catch {
+    return null
+  }
+}
 
 /** 进度订阅者集合：设置页和启动弹窗会同时挂着，事件必须广播给每一家 */
 const progressSubscribers = new Set<(progress: UpdateProgress) => void>()

@@ -77,6 +77,8 @@ npm run package:android
 
 也不用每次都自己想起来去点：进应用 1.2 秒后有新版本会从底部升起提醒（最多每 6 小时自动查一次，可以「稍后再说」静默 6 小时或「跳过这个版本」永久静音），下载中可以收起，进度在设置页继续。
 
+下载本身也做了加固：服务器支持 `Range` 就切 4 段并行拉（速度更快），每段落在 `cacheDir/update/*.part` 里，网络断了、重试、甚至应用被杀掉，下次都从已经下到的位置接着传；重新打开应用会显示「下载已暂停 + 已下载多少」，点「继续下载」接着下。下完会校验大小、`PK` 头和 `version.json` 里的 `sha256`，坏包直接删掉重下。
+
 发版时只要改 `android/app/build.gradle` 的 `versionCode`（+1）和 `versionName`（或者直接跑 `npm run bump:android`），再跑一次 `npm run package:android`——脚本会顺手更新 `public/version.json`、把 APK 发到 `public/download/`，推上去就生效。
 
 没有 Android SDK 的机器走云端：Actions →「打包安卓 APK 并发布更新」→ Run workflow，一次跑完「版本号 +1 → 打 APK → 发布 → 提交 → 部署 Pages」。签名用仓库 secret `ANDROID_KEYSTORE_BASE64` 等注入（不配的话每包签名都不同，只能全新安装），细节见 [打包与安装](docs/打包与安装.md)。

@@ -16,11 +16,15 @@ type NativeWindow = {
 
 const win = window as unknown as NativeWindow
 
+/** 站点清单里的安装包摘要：用来验证网页把 sha256 原样透传给原生 */
+const SHA256 = 'b7c2'.repeat(16)
+
 const MANIFEST = {
   versionCode: 12,
   versionName: '1.2.0',
   url: './download/cimiao-1.2.0.apk',
-  notes: '修掉了几个小问题，单词卡片排版更宽松'
+  notes: '修掉了几个小问题，单词卡片排版更宽松',
+  sha256: SHA256
 }
 
 /** 模拟安卓壳：checkUpdate 立刻按 reply 回调，installUpdate 只记录 */
@@ -116,7 +120,8 @@ describe('启动时的新版本提醒', () => {
 
     clickButton('立即更新')
     expect(installUpdate).toHaveBeenCalledWith(
-      new URL('./download/cimiao-1.2.0.apk', 'https://axv0805-beep.github.io/word-master/version.json').href
+      new URL('./download/cimiao-1.2.0.apk', 'https://axv0805-beep.github.io/word-master/version.json').href,
+      SHA256
     )
 
     const bar = screen.getByRole('progressbar', { name: 'v1.2.0 更新下载进度' })

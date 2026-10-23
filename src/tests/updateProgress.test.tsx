@@ -17,6 +17,9 @@ type NativeWindow = {
 
 const win = window as unknown as NativeWindow
 
+/** 站点清单里的安装包摘要：用来验证网页把 sha256 原样透传给原生 */
+const SHA256 = 'a3f1'.repeat(16)
+
 function resetStore() {
   window.localStorage.clear()
   useAppStore.setState({
@@ -54,7 +57,9 @@ function clickButton(matcher: string) {
 }
 
 /** 模拟安卓壳：checkUpdate 立刻回调一个新版本，installUpdate 只记录被调用 */
-function installFakeBridge(overrides: { withBrowser?: boolean } = {}) {
+function installFakeBridge(
+  overrides: { withBrowser?: boolean; resume?: { received: number; total: number } } = {}
+) {
   const installUpdate = vi.fn()
   const openInBrowser = vi.fn()
   const app: Record<string, unknown> = {
@@ -66,13 +71,18 @@ function installFakeBridge(overrides: { withBrowser?: boolean } = {}) {
           versionCode: 8,
           versionName: '1.1.6',
           url: './download/cimiao-1.1.6.apk',
-          notes: '修复若干问题'
+          notes: '修复若干问题',
+          sha256: SHA256
         })
       )
     },
     installUpdate
   }
   if (overrides.withBrowser) app.openInBrowser = openInBrowser
+  if (overrides.resume) {
+    const { received, total } = overrides.resume
+    app.getUpdateState = () => JSON.stringify({ received, total, running: false, partial: true })
+  }
   win.AndroidApp = app
   return { installUpdate, openInBrowser }
 }
@@ -136,7 +146,8 @@ describe('设置页更新下载进度', () => {
 
     clickButton('立即更新')
     expect(installUpdate).toHaveBeenCalledWith(
-      new URL('./download/cimiao-1.1.6.apk', 'https://axv0805-beep.github.io/word-master/version.json').href
+      new URL('./download/cimiao-1.1.6.apk', 'https://axv0805-beep.github.io/word-master/version.json').href,
+      SHA256
     )
 
     // 第一个事件可能是「总大小未知」，先给不确定进度条，不能停在 0%
@@ -177,6 +188,26 @@ describe('设置页更新下载进度', () => {
     pushProgress({ phase: 'done' })
     expect(screen.getByText('下载完成')).toBeTruthy()
     expect(buttonsMatching('重新下载')).toHaveLength(0)
+  })
+
+  it('上次下到一半被系统杀掉：进页面显示「下载已暂停」，继续下载接着传', async () => {
+    const { installUpdate } = installFakeBridge({ resume: { received: 4 * 1024 * 1024, total: 10 * 1024 * 1024 } })
+    renderSettings()
+
+    clickButton('检查')
+    await waitFor(() => expect(screen.getByText('v1.1.6 可用')).toBeTruthy())
+
+    // 缓存里还有半截安装包：先把进度摆出来，别让用户以为要从 0 重下
+    expect(screen.getByText('下载已暂停')).toBeTruthy()
+    expect(screen.getByRole('progressbar', { name: 'v1.1.6 更新下载进度' }).getAttribute('aria-valuenow')).toBe('40')
+    expect(screen.getByText(/退出应用不会丢/)).toBeTruthy()
+
+    clickButton('继续下载')
+    expect(installUpdate).toHaveBeenCalledWith(
+      new URL('./download/cimiao-1.1.6.apk', 'https://axv0805-beep.github.io/word-master/version.json').href,
+      SHA256
+    )
+    await waitFor(() => expect(screen.getByText('正在下载安装包')).toBeTruthy())
   })
 
   it('失败时能退到浏览器下载', async () => {

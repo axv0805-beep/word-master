@@ -70,6 +70,11 @@ export function UpdatePrompt() {
   const downloading = job?.phase === 'downloading' || job?.phase === 'verifying'
   const openInBrowser = app?.openInBrowser
 
+  const startDownload = useCallback(() => {
+    if (!info) return
+    start({ url: info.url, sha256: info.sha256 }, (message) => showToast(message, 'error'))
+  }, [info, showToast, start])
+
   // 下载中允许收起（原生线程继续下），但 ESC / 点背景也按「稍后」处理，不会中断下载
   useEffect(() => {
     if (!open) return
@@ -145,21 +150,17 @@ export function UpdatePrompt() {
             <button
               type="button"
               className="btn btn-primary btn-md w-full"
-              onClick={() => start(info.url, (message) => showToast(message, 'error'))}
+              onClick={() => startDownload()}
             >
               <Icon name="download" size={16} />
               立即更新
             </button>
           )}
 
-          {job?.phase === 'failed' && (
-            <button
-              type="button"
-              className="btn btn-primary btn-md w-full"
-              onClick={() => start(info.url, (message) => showToast(message, 'error'))}
-            >
-              <Icon name="refresh" size={16} />
-              重新下载
+          {(job?.phase === 'failed' || job?.phase === 'paused') && (
+            <button type="button" className="btn btn-primary btn-md w-full" onClick={() => startDownload()}>
+              <Icon name={job?.phase === 'paused' ? 'download' : 'refresh'} size={16} />
+              {job?.phase === 'paused' ? '继续下载' : '重新下载'}
             </button>
           )}
 
@@ -182,7 +183,7 @@ export function UpdatePrompt() {
             </button>
           )}
 
-          {job?.phase === 'failed' && openInBrowser && (
+          {(job?.phase === 'failed' || job?.phase === 'paused') && openInBrowser && (
             <button
               type="button"
               className="btn btn-ghost btn-sm w-full"

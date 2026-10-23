@@ -134,4 +134,8 @@ fs.copyFileSync(apkSrc, apkOut)
 
 console.log('[6/6] 发布到 public/download（随站点提供，供应用内更新与手动下载）')
 const published = publishApk(apkOut, { root, extraDirs: [path.join(root, 'dist')] })
+// 拿到安装包才能算摘要：重写一次 version.json，让应用内更新能校验下载完整性
+writeVersionManifest({ versionCode, versionName, apkName, notes: process.env.UPDATE_NOTES, sha256: published.sha256 }, root)
+fs.copyFileSync(path.join(root, 'public', 'version.json'), path.join(root, 'dist', 'version.json'))
 console.log(`完成：${apkOut}（${published.size} MB），站点地址 ./download/${apkName}`)
+console.log(`sha256：${published.sha256}`)

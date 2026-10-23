@@ -42,8 +42,9 @@ if (dryRun) {
 
 syncAppVersion(versionName, ROOT)
 const published = publishApk(apkPath, { root: ROOT })
-const manifest = writeVersionManifest({ versionCode, versionName, apkName, notes })
+const manifest = writeVersionManifest({ versionCode, versionName, apkName, notes, sha256: published.sha256 })
 
 console.log(`\n完成：${published.size} MB，${published.targets.length} 个文件已更新`)
-console.log(`version.json 说明：${manifest.notes || DEFAULT_NOTES}`)
+console.log(`version.json 说明：${manifest.manifest.notes || DEFAULT_NOTES}`)
+console.log(`sha256：${published.sha256}`)
 console.log('\n下一步：提交 public/download 与 public/version.json，Push 后 Pages 会一起更新。')

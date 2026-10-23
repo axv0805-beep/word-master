@@ -3,6 +3,7 @@ package com.cimiao.app;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -29,11 +30,19 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
@@ -45,10 +54,28 @@ public class MainActivity extends Activity {
             "https://axv0805-beep.github.io/word-master/version.json";
     private static final int BG = Color.parseColor("#F1FAF3");
 
+    /** 分段下载：单连接被限速时多开几条连接通常能快不少 */
+    private static final int SEGMENT_COUNT = 4;
+    /** 小于这个体积就没必要分段，分成 4 份反而更慢 */
+    private static final long PARALLEL_MIN_BYTES = 1024L * 1024L;
+    /** 单次读写缓冲：16KB 在移动网络上太碎，64KB 更稳 */
+    private static final int DOWNLOAD_BUFFER = 64 * 1024;
+    /** 每段最多重试几次（每次都从已下载的位置继续，不会从头再来） */
+    private static final int SEGMENT_ATTEMPTS = 6;
+    private static final String UPDATE_PREFS = "update-download";
+
     private WebView webView;
     private TextToSpeech tts;
     /** 防止连点「立即更新」开出两个下载线程抢同一个文件 */
     private final AtomicBoolean updateRunning = new AtomicBoolean(false);
+    /** 当前已下载字节数 / 总字节数（网页重新打开时用它恢复进度条） */
+    private volatile long updateReceived = 0;
+    /** 服务器是否支持 Range（支持才有可能分段并行与断点续传） */
+    private volatile boolean rangeSupported = false;
+    private volatile long updateTotal = -1;
+    private volatile int updateAttempt = 1;
+    /** 最近一次推送下载进度的时间，用来给网页节流 */
+    private volatile long lastProgressAt = 0;
     /** 系统栏实际占用的像素高度，读取后换算成 CSS px 推给网页 */
     private int statusInsetPx = 0;
     private int navInsetPx = 0;
@@ -237,56 +264,33 @@ public class MainActivity extends Activity {
             }).start();
         }
 
-        private void evaluate(String js) {
-            runOnUiThread(() -> {
-                if (webView != null) webView.evaluateJavascript(js, null);
-            });
-        }
-
         @JavascriptInterface
-        public void installUpdate(final String url) {
+        public void installUpdate(final String url, final String sha256) {
             if (url == null || url.isEmpty()) return;
             if (!updateRunning.compareAndSet(false, true)) {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "更新正在下载中…", Toast.LENGTH_SHORT).show());
                 return;
             }
             new Thread(() -> {
-                File apk = new File(getCacheDir(), "update.apk");
-                String lastError = "网络连接失败";
                 try {
-                    // 手机网络访问 GitHub Pages 经常抖动，重试三次并校验大小，避免拿到半个文件
-                    for (int attempt = 1; attempt <= 3; attempt++) {
-                        final int current = attempt;
-                        try {
-                            emitUpdateProgress("downloading", 0, -1, current, null);
-                            downloadApk(url, apk, (received, total) -> {
-                                // 节流：真实网络里 16KB 一次回调太密，合并到 ~6 次/秒足够顺滑
-                                long now = System.currentTimeMillis();
-                                boolean finished = total > 0 && received >= total;
-                                if (!finished && now - lastProgressAt < 160) return;
-                                lastProgressAt = now;
-                                emitUpdateProgress("downloading", received, total, current, null);
-                            });
-                            emitUpdateProgress("verifying", apk.length(), apk.length(), current, null);
-                            final File ready = apk;
-                            runOnUiThread(() -> {
-                                String blocked = launchInstaller(ready);
-                                if (blocked == null) {
-                                    emitUpdateProgress("done", ready.length(), ready.length(), current, null);
-                                    Toast.makeText(MainActivity.this, "下载完成，正在打开安装…", Toast.LENGTH_SHORT).show();
-                                } else {
-                                    emitUpdateProgress("failed", ready.length(), ready.length(), current, blocked);
-                                }
-                            });
-                            return;
-                        } catch (Exception e) {
-                            lastError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    File apk = downloadUpdate(url, sha256);
+                    emitUpdateProgress("verifying", apk.length(), apk.length(), updateAttempt, null);
+                    final long size = apk.length();
+                    runOnUiThread(() -> {
+                        String blocked = launchInstaller(apk);
+                        if (blocked == null) {
+                            updateReceived = size;
+                            emitUpdateProgress("done", size, size, updateAttempt, null);
+                            Toast.makeText(MainActivity.this, "下载完成，正在打开安装…", Toast.LENGTH_SHORT).show();
+                        } else {
+                            emitUpdateProgress("failed", size, size, updateAttempt, blocked);
                         }
-                    }
-                    final String message = lastError;
-                    emitUpdateProgress("failed", 0, -1, 3, message);
+                    });
+                } catch (Exception e) {
+                    final String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    emitUpdateProgress("failed", partialBytes(), updateTotal, updateAttempt, message);
                     runOnUiThread(() -> Toast.makeText(MainActivity.this,
-                            "更新下载失败：" + message + "。可以点「用浏览器下载」再试一次",
+                            "更新下载失败：" + message + "。已下载的部分会保留，点「继续下载」可以接着下",
                             Toast.LENGTH_LONG).show());
                 } finally {
                     updateRunning.set(false);
@@ -294,29 +298,26 @@ public class MainActivity extends Activity {
             }).start();
         }
 
-        /** 最近一次推送下载进度的时间，用来给网页节流 */
-        private long lastProgressAt = 0;
-
         /**
-         * 把下载进度推给网页：window.__updateProgress(JSON 字符串)。
-         * 所有字段都是数字或固定文案，用 JSONObject.quote 包一层，避免消息里的引号把脚本拼坏。
+         * 当前的下载状态，给网页在开机/切回前台时恢复界面用。
+         * partial=true 表示上次没下完、缓存里还有可续传的片段。
          */
-        private void emitUpdateProgress(String phase, long received, long total, int attempt, String message) {
+        @JavascriptInterface
+        public String getUpdateState() {
             org.json.JSONObject json = new org.json.JSONObject();
             try {
-                json.put("phase", phase);
+                long received = partialBytes();
                 json.put("received", received);
-                json.put("total", total);
-                json.put("attempt", attempt);
-                if (message != null) json.put("message", message);
+                json.put("total", updatePrefs().getLong("total", updateTotal));
+                json.put("running", updateRunning.get());
+                json.put("partial", received > 0);
             } catch (Exception e) {
-                return;
+                return "{}";
             }
-            evaluate("window.__updateProgress && window.__updateProgress("
-                    + org.json.JSONObject.quote(json.toString()) + ")");
+            return json.toString();
         }
 
-        /** 用系统浏览器打开下载地址：浏览器有断点续传，网络差的时候更稳 */
+        /** 用系统浏览器打开下载地址：浏览器自带断点续传，网络差的时候更稳 */
         @JavascriptInterface
         public void openInBrowser(final String url) {
             if (url == null || url.isEmpty()) return;
@@ -332,44 +333,355 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** 下载进度回调：已下载字节数与总字节数（-1 = 服务器没给 Content-Length） */
-    private interface DownloadListener {
-        void onProgress(long received, long total);
+    /** 在 UI 线程执行一段 JS（网页还没加载完时直接跳过） */
+    private void evaluate(final String js) {
+        runOnUiThread(() -> {
+            if (webView != null) webView.evaluateJavascript(js, null);
+        });
     }
 
-    /** 下载并按 Content-Length 校验，半截文件直接判失败，交给上层重试 */
-    private void downloadApk(String url, File apk, DownloadListener listener) throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-        conn.setConnectTimeout(20000);
-        conn.setReadTimeout(60000);
-        conn.setInstanceFollowRedirects(true);
-        conn.setRequestProperty("Accept-Encoding", "identity");
+    /**
+     * 把下载进度推给网页：window.__updateProgress(JSON 字符串)。
+     * 所有字段都是数字或固定文案，用 JSONObject.quote 包一层，避免消息里的引号把脚本拼坏。
+     */
+    private void emitUpdateProgress(String phase, long received, long total, int attempt, String message) {
+        org.json.JSONObject json = new org.json.JSONObject();
         try {
+            json.put("phase", phase);
+            json.put("received", received);
+            json.put("total", total);
+            json.put("attempt", attempt);
+            if (message != null) json.put("message", message);
+        } catch (Exception e) {
+            return;
+        }
+        evaluate("window.__updateProgress && window.__updateProgress("
+                + org.json.JSONObject.quote(json.toString()) + ")");
+    }
+
+    /** 下载目录：断点续传的片段都放这里，进程被杀也不会丢 */
+    private File updateDir() {
+        File dir = new File(getCacheDir(), "update");
+        if (!dir.exists() && !dir.mkdirs()) {
+            // 目录建不出来就退回单文件模式，别让整个更新流程卡死
+            return getCacheDir();
+        }
+        return dir;
+    }
+
+    private SharedPreferences updatePrefs() {
+        return getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE);
+    }
+
+    /** 缓存里已经下好、还没合并的字节数 */
+    private long partialBytes() {
+        File[] files = updateDir().listFiles();
+        if (files == null) return 0;
+        long sum = 0;
+        for (File file : files) {
+            if (file.getName().endsWith(".part")) sum += file.length();
+        }
+        return sum;
+    }
+
+    private void wipeUpdateDir(File dir) {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (file.getName().endsWith(".part")) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+            }
+        }
+    }
+
+    /**
+     * 把安装包下到 cacheDir/update.apk：能分段就 4 条连接并行，每条都支持断点续传；
+     * 服务器不支持 Range 时退回单连接。中途失败或进程被杀，下次调用会接着下，不会从头再来。
+     */
+    private File downloadUpdate(String url, String sha256) throws Exception {
+        File dir = updateDir();
+        File apk = new File(getCacheDir(), "update.apk");
+        String savedUrl = updatePrefs().getString("url", "");
+        if (!url.equals(savedUrl)) {
+            // 换了个版本就别复用旧片段，否则拼出来的是两个版本混合的文件
+            wipeUpdateDir(dir);
+            //noinspection ResultOfMethodCallIgnored
+            apk.delete();
+            updatePrefs().edit().clear().putString("url", url).apply();
+        }
+        updateAttempt = 1;
+        lastProgressAt = 0;
+        long total = probeTotal(url);
+        updateTotal = total;
+        if (total > 0) updatePrefs().edit().putLong("total", total).apply();
+
+        if (rangeSupported && total >= PARALLEL_MIN_BYTES) {
+            try {
+                downloadSegments(url, dir, total);
+                mergeSegments(dir, total, apk);
+            } catch (Exception e) {
+                // 有些代理/运营商对并发连接不友好：退回单连接续传，别让用户白等
+                wipeUpdateDir(dir);
+                //noinspection ResultOfMethodCallIgnored
+                apk.delete();
+                downloadSingle(url, dir, total, apk);
+            }
+        } else {
+            downloadSingle(url, dir, total, apk);
+        }
+
+        long size = apk.length();
+        if (total > 0 && size != total) {
+            throw new IllegalStateException("下载不完整（" + size + "/" + total + "）");
+        }
+        if (size < 100_000 || !looksLikeApk(apk)) {
+            throw new IllegalStateException("文件不是安装包");
+        }
+        if (sha256 != null && !sha256.isEmpty() && !sha256.equalsIgnoreCase(sha256Of(apk))) {
+            // 并行下载拼错了或文件被中间人改过：删掉重下，别把坏包装上去
+            //noinspection ResultOfMethodCallIgnored
+            apk.delete();
+            throw new IllegalStateException("安装包校验没通过，已清除，请重试");
+        }
+        wipeUpdateDir(dir);
+        updatePrefs().edit().remove("total").apply();
+        updateReceived = size;
+        return apk;
+    }
+
+    /** 问一下文件多大、认不认 Range：认 Range 才能断点续传和分段并行 */
+    private long probeTotal(String url) throws Exception {
+        HttpURLConnection conn = openConnection(url);
+        try {
+            conn.setRequestProperty("Range", "bytes=0-0");
             int code = conn.getResponseCode();
-            if (code != HttpURLConnection.HTTP_OK) throw new IllegalStateException("HTTP " + code);
-            long expected = conn.getContentLengthLong();
-            long total = 0;
-            long lastNotified = 0;
-            try (InputStream in = conn.getInputStream();
-                 FileOutputStream out = new FileOutputStream(apk)) {
-                byte[] buffer = new byte[16384];
-                int read;
-                while ((read = in.read(buffer)) > 0) {
-                    out.write(buffer, 0, read);
-                    total += read;
-                    // 每 256 KB 回调一次，再交给上层按时间节流，避免频繁跨线程打 JS
-                    if (listener != null && total - lastNotified >= 262144) {
-                        lastNotified = total;
-                        listener.onProgress(total, expected);
+            if (code == HttpURLConnection.HTTP_PARTIAL) {
+                rangeSupported = true;
+                long total = parseRangeTotal(conn.getHeaderField("Content-Range"));
+                if (total > 0) return total;
+                return -1;
+            }
+            if (code == HttpURLConnection.HTTP_OK) {
+                // 忽略 Range：既不能分段也不能续传，别白试 24 次
+                rangeSupported = false;
+                return conn.getContentLengthLong();
+            }
+            throw new IllegalStateException("HTTP " + code);
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    /** 从 "bytes 0-0/3024458" 里取出总大小 */
+    private long parseRangeTotal(String contentRange) {
+        if (contentRange == null) return -1;
+        int slash = contentRange.lastIndexOf('/');
+        if (slash < 0 || slash == contentRange.length() - 1) return -1;
+        try {
+            return Long.parseLong(contentRange.substring(slash + 1).trim());
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    private HttpURLConnection openConnection(String url) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(30000);
+        conn.setInstanceFollowRedirects(true);
+        conn.setUseCaches(false);
+        conn.setRequestProperty("Accept-Encoding", "identity");
+        conn.setRequestProperty("User-Agent", "CimiaoUpdater/1.0");
+        return conn;
+    }
+
+    /** 4 段并行下载，各自用 segN.part 记录进度 */
+    private void downloadSegments(final String url, final File dir, final long total) throws Exception {
+        long chunk = total / SEGMENT_COUNT;
+        final AtomicBoolean stopped = new AtomicBoolean(false);
+        ExecutorService pool = Executors.newFixedThreadPool(SEGMENT_COUNT);
+        Thread watcher = new Thread(() -> {
+            while (!stopped.get()) {
+                reportProgress(partialBytes(), total, updateAttempt);
+                sleepQuietly(250);
+            }
+        });
+        watcher.setDaemon(true);
+        watcher.start();
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < SEGMENT_COUNT; i++) {
+                final long start = i * chunk;
+                final long end = (i == SEGMENT_COUNT - 1) ? total - 1 : (start + chunk - 1);
+                final File part = new File(dir, "seg" + i + ".part");
+                final int index = i + 1;
+                futures.add(pool.submit(() -> {
+                    downloadSegment(url, part, start, end, index);
+                    return null;
+                }));
+            }
+            for (Future<?> future : futures) future.get();
+            reportProgress(partialBytes(), total, updateAttempt);
+        } finally {
+            stopped.set(true);
+            watcher.interrupt();
+            pool.shutdownNow();
+        }
+    }
+
+    private void downloadSegment(String url, File part, long start, long end, int index) throws Exception {
+        long expected = end - start + 1;
+        Exception last = null;
+        for (int attempt = 1; attempt <= SEGMENT_ATTEMPTS; attempt++) {
+            updateAttempt = Math.max(updateAttempt, attempt);
+            if (part.length() > expected) {
+                // 上一次可能写串了（比如服务器临时忽略过 Range）：删掉这段重来
+                //noinspection ResultOfMethodCallIgnored
+                part.delete();
+            }
+            if (part.length() >= expected) return;
+            HttpURLConnection conn = null;
+            try {
+                long have = part.length();
+                conn = openConnection(url);
+                conn.setRequestProperty("Range", "bytes=" + (start + have) + "-" + end);
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_PARTIAL) {
+                    copyToFile(conn.getInputStream(), part, true);
+                    if (part.length() >= expected) return;
+                    throw new IOException("第 " + index + " 段没下完");
+                }
+                if (code == HttpURLConnection.HTTP_OK) {
+                    // 服务器这次又忽略了 Range：整个分段方案作废，交给单连接兜底
+                    //noinspection ResultOfMethodCallIgnored
+                    part.delete();
+                    throw new RangeUnsupportedException();
+                }
+                if (code == 416 && part.delete()) continue;
+                throw new IOException("HTTP " + code);
+            } catch (RangeUnsupportedException e) {
+                throw e;
+            } catch (Exception e) {
+                last = e;
+                sleepQuietly(400L * attempt + 200L * index);
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }
+        throw new IllegalStateException("第 " + index + " 段下载失败：" + (last == null ? "未知错误" : last.getMessage()));
+    }
+
+    /** 单连接下载（服务器不支持 Range 或文件很小的兜底路径），同样尽量续传 */
+    private void downloadSingle(String url, File dir, long total, File apk) throws Exception {
+        File part = new File(dir, "single.part");
+        Exception last = null;
+        for (int attempt = 1; attempt <= SEGMENT_ATTEMPTS; attempt++) {
+            updateAttempt = attempt;
+            if (total > 0 && part.length() >= total) break;
+            HttpURLConnection conn = null;
+            try {
+                long have = part.length();
+                conn = openConnection(url);
+                if (have > 0) conn.setRequestProperty("Range", "bytes=" + have + "-");
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_PARTIAL) {
+                    copyToFile(conn.getInputStream(), part, true);
+                } else if (code == HttpURLConnection.HTTP_OK) {
+                    // 服务器忽略 Range：只能从 0 重来
+                    copyToFile(conn.getInputStream(), part, false);
+                } else {
+                    throw new IOException("HTTP " + code);
+                }
+                reportProgress(part.length(), total, attempt);
+                if (total <= 0 || part.length() == total) break;
+                throw new IOException("下载不完整");
+            } catch (Exception e) {
+                last = e;
+                sleepQuietly(500L * attempt);
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }
+        if (total > 0 && part.length() != total) {
+            throw new IllegalStateException(last == null ? "下载不完整" : last.getMessage());
+        }
+        //noinspection ResultOfMethodCallIgnored
+        apk.delete();
+        if (!part.renameTo(apk)) throw new IllegalStateException("保存安装包失败");
+    }
+
+    private void copyToFile(InputStream in, File target, boolean append) throws IOException {
+        try (InputStream source = in; FileOutputStream out = new FileOutputStream(target, append)) {
+            byte[] buffer = new byte[DOWNLOAD_BUFFER];
+            int read;
+            while ((read = source.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+            }
+            out.flush();
+        }
+    }
+
+    /** 把 segN.part 依次拼成最终 APK */
+    private void mergeSegments(File dir, long total, File apk) throws Exception {
+        //noinspection ResultOfMethodCallIgnored
+        apk.delete();
+        try (FileOutputStream out = new FileOutputStream(apk)) {
+            for (int i = 0; i < SEGMENT_COUNT; i++) {
+                File part = new File(dir, "seg" + i + ".part");
+                try (InputStream in = new FileInputStream(part)) {
+                    byte[] buffer = new byte[DOWNLOAD_BUFFER];
+                    int read;
+                    while ((read = in.read(buffer)) > 0) {
+                        out.write(buffer, 0, read);
                     }
                 }
             }
-            if (expected > 0 && total != expected) throw new IllegalStateException("下载不完整");
-            if (total < 100_000 || !looksLikeApk(apk)) throw new IllegalStateException("文件不是安装包");
-            // 校验通过才报 100%，避免进度条先满格再报错
-            if (listener != null) listener.onProgress(total, expected > 0 ? expected : total);
-        } finally {
-            conn.disconnect();
+        }
+        if (apk.length() != total) {
+            throw new IllegalStateException("合并后大小不对（" + apk.length() + "/" + total + "）");
+        }
+    }
+
+    private void reportProgress(long received, long total, int attempt) {
+        updateReceived = received;
+        updateTotal = total;
+        long now = System.currentTimeMillis();
+        boolean finished = total > 0 && received >= total;
+        // 节流：真实网络里每次 64KB 都发一条太密，合并到 ~6 次/秒足够顺滑
+        if (!finished && now - lastProgressAt < 160) return;
+        lastProgressAt = now;
+        emitUpdateProgress("downloading", received, total, attempt, null);
+    }
+
+    private void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private String sha256Of(File file) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream in = new FileInputStream(file)) {
+            byte[] buffer = new byte[DOWNLOAD_BUFFER];
+            int read;
+            while ((read = in.read(buffer)) > 0) {
+                digest.update(buffer, 0, read);
+            }
+        }
+        StringBuilder sb = new StringBuilder(64);
+        for (byte b : digest.digest()) {
+            sb.append(String.format(Locale.US, "%02x", b));
+        }
+        return sb.toString();
+    }
+
+    /** 服务器拒绝 Range 分段：内部信号，让 downloadUpdate 换单连接路径 */
+    private static final class RangeUnsupportedException extends Exception {
+        RangeUnsupportedException() {
+            super("服务器不支持分段下载");
         }
     }
 

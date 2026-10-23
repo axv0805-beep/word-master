@@ -110,6 +110,7 @@ export function SettingsPage() {
     versionName: string
     url: string
     notes?: string
+    sha256?: string
   } | null>(null)
   // 下载进度只由安卓壳通过 window.__updateProgress 推送，网页端订阅了也收不到事件。
   // 具体订阅与速度换算在 useUpdateDownload 里，和启动弹窗共用同一份实现。
@@ -117,7 +118,7 @@ export function SettingsPage() {
 
   function startInstall() {
     if (!app || !update) return
-    startDownload(update.url, (message) => showToast(message, 'error'))
+    startDownload({ url: update.url, sha256: update.sha256 }, (message) => showToast(message, 'error'))
   }
 
   function checkUpdate() {
@@ -132,9 +133,11 @@ export function SettingsPage() {
             versionName: string
             url: string
             notes?: string
+            sha256?: string
           }
           setUpdate({ ...info, url: new URL(info.url, UPDATE_MANIFEST_URL).href })
-          resetDownload()
+          // 缓存里还留着下到一半的片段时不要清掉：那正是「下载已暂停」要提示的东西
+          if (updateJob?.phase !== 'paused') resetDownload()
           showToast(`发现新版本 v${info.versionName}`)
         } catch {
           showToast('版本信息解析失败', 'error')
@@ -612,17 +615,20 @@ export function SettingsPage() {
                 {updateJob ? (
                   <>
                     <UpdateProgressView state={updateJob} version={update.versionName} />
-                    {updateJob.phase === 'failed' && (
+                    {(updateJob.phase === 'failed' || updateJob.phase === 'paused') && (
                       <button
                         type="button"
                         className="btn btn-primary btn-md w-full mt-3"
                         onClick={startInstall}
                       >
-                        <Icon name="refresh" size={16} />
-                        重新下载
+                        <Icon name={updateJob.phase === 'paused' ? 'download' : 'refresh'} size={16} />
+                        {updateJob.phase === 'paused' ? '继续下载' : '重新下载'}
                       </button>
                     )}
-                    {(updateJob.phase === 'failed' || updateJob.phase === 'done') && app.openInBrowser && (
+                    {(updateJob.phase === 'failed' ||
+                      updateJob.phase === 'paused' ||
+                      updateJob.phase === 'done') &&
+                      app.openInBrowser && (
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm w-full mt-2"

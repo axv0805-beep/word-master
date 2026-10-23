@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ProgressBar } from './Widgets'
-import { nativeApp, onUpdateProgress } from '../../core/native'
+import { nativeApp, onUpdateProgress, readUpdateDownloadState } from '../../core/native'
 import type { UpdateProgress } from '../../core/native'
 
 /** 站点清单解析后的形态，url 已经按 UPDATE_MANIFEST_URL 补全 */
@@ -9,6 +9,8 @@ export interface UpdateInfo {
   versionName: string
   url: string
   notes?: string
+  /** 安装包 sha256（站点清单里带的话，原生下载完会校验一遍） */
+  sha256?: string
 }
 
 export type DownloadState = UpdateProgress & { speed?: number }
@@ -58,6 +60,7 @@ function formatEta(seconds: number): string {
 
 const DOWNLOAD_HEADLINE: Record<UpdateProgress['phase'], string> = {
   downloading: '正在下载安装包',
+  paused: '下载已暂停',
   verifying: '正在校验安装包',
   installing: '正在打开安装器',
   done: '下载完成',
@@ -72,6 +75,7 @@ export function UpdateProgressView({ state, version }: { state: DownloadState; v
   const percent = known ? Math.floor(ratio * 100) : null
   const attempt = state.attempt ?? 1
   const downloading = state.phase === 'downloading'
+  const paused = state.phase === 'paused'
 
   const details: string[] = []
   if (downloading) {
@@ -82,6 +86,9 @@ export function UpdateProgressView({ state, version }: { state: DownloadState; v
     }
     if (attempt > 1) details.push(`第 ${attempt} 次尝试`)
     details.push('请勿关闭应用')
+  } else if (paused) {
+    details.push(known ? `${formatSize(received)} / ${formatSize(total)}` : `已下载 ${formatSize(received)}`)
+    details.push('退出应用不会丢，点「继续下载」接着下')
   } else if (state.phase === 'verifying') {
     details.push('确认文件完整后会自动打开安装器')
   } else if (state.phase === 'installing') {
@@ -106,12 +113,12 @@ export function UpdateProgressView({ state, version }: { state: DownloadState; v
           {DOWNLOAD_HEADLINE[state.phase]}
         </span>
         <span className="faint" style={{ fontSize: '0.78rem', flexShrink: 0 }}>
-          {percent === null ? (downloading ? '下载中' : '') : `${percent}%`}
+          {percent === null ? (downloading ? '下载中' : paused ? '已暂停' : '') : `${percent}%`}
         </span>
       </div>
       <ProgressBar
         className="mt-2"
-        value={downloading || state.phase === 'failed' ? ratio : 1}
+        value={downloading || paused || state.phase === 'failed' ? ratio : 1}
         indeterminate={downloading && !known}
         tone={state.phase === 'failed' ? 'danger' : 'brand'}
         ariaLabel={`v${version} 更新下载进度`}
@@ -123,10 +130,16 @@ export function UpdateProgressView({ state, version }: { state: DownloadState; v
   )
 }
 
+export interface UpdateStartTarget {
+  url: string
+  /** 站点清单里的 sha256；有就交给原生校验，没有就只校验大小和 PK 头 */
+  sha256?: string
+}
+
 export interface UpdateDownload {
   job: DownloadState | null
-  /** 调起原生下载；返回 false 表示当前环境调不起来（原生壳缺失或抛错） */
-  start: (url: string, onError?: (message: string) => void) => boolean
+  /** 调起原生下载（有断点续传时会自动接着下）；返回 false 表示当前环境调不起来 */
+  start: (target: UpdateStartTarget, onError?: (message: string) => void) => boolean
   reset: () => void
 }
 
@@ -161,18 +174,27 @@ export function useUpdateDownload(): UpdateDownload {
     setJob(null)
   }, [])
 
-  const start = useCallback((url: string, onError?: (message: string) => void) => {
+  // 进页面时问一下原生：上次是不是下到一半被杀了？有片段就显示「下载已暂停」，别让用户从头下
+  useEffect(() => {
+    const state = readUpdateDownloadState()
+    if (!state || !state.partial || state.running) return
+    setJob((current) =>
+      current ?? { phase: 'paused', received: state.received, total: state.total > 0 ? state.total : -1 }
+    )
+  }, [])
+
+  const start = useCallback((target: UpdateStartTarget, onError?: (message: string) => void) => {
     const app = nativeApp()
     if (!app) {
       onError?.('当前环境不支持应用内更新')
       return false
     }
     speedSample.current = null
-    lastBytes.current = null
+    // 续传时别把 lastBytes 清空：失败帧还要用上一次的真实进度
     // 先点亮进度条：第一个进度事件要等连接建立后才会来
     setJob({ phase: 'downloading', received: 0, total: -1, attempt: 1, speed: 0 })
     try {
-      app.installUpdate(url)
+      app.installUpdate(target.url, target.sha256)
       return true
     } catch {
       const message = '调起下载失败，请改用浏览器下载'

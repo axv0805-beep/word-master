@@ -63,6 +63,8 @@ npm run package:android
 
 产物：`release/词芽-安卓.apk`。传到手机点开安装即可（系统会提示「未知来源」，选择允许）。
 
+> 已经部署好的站点也带了安装包：[下载 词芽-1.0.0.apk](https://axv0805-beep.github.io/word-master/download/cimiao-1.0.0.apk)（1.3 MB），手机上打开这个链接直接下载。
+
 首次构建依赖本地工具链，都在项目外（不进仓库）：
 
 | 内容 | 路径 |

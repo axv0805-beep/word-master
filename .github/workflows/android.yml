@@ -114,9 +114,17 @@ jobs:
         run: node scripts/publish-android.mjs android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: 提交并推送
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # 仓库「Workflow permissions」还是只读时，GITHUB_TOKEN 推送会被 403 拒绝。
+          # 配一个 RELEASE_TOKEN secret（细粒度 PAT，Contents: Read and write）就能绕过那个设置。
+          if [ -n "$RELEASE_TOKEN" ]; then
+            echo "::add-mask::$RELEASE_TOKEN"
+            git remote set-url origin "https://x-access-token:${RELEASE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
           git add public/version.json public/download android/app/build.gradle
           if git diff --cached --quiet; then
             echo "版本内容没有变化，跳过提交"

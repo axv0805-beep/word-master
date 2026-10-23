@@ -30,7 +30,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          # 不用 setup-node 自带的 pnpm 缓存：它内部执行 `pnpm store` 时在本仓库会报
+          # "packages field missing or empty"（pnpm 9 的参数解析问题），构建本身很快，省掉缓存即可
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile

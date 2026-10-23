@@ -1,7 +1,7 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1.0",
-  "url": "./download/cimiao-1.1.0.apk",
-  "notes": "细节优化与问题修复，更新后学习进度与设置都会保留。",
+  "versionCode": 3,
+  "versionName": "1.1.1",
+  "url": "./download/cimiao-1.1.1.apk",
+  "notes": "修正启动图标偏移：图形重新居中并按自适应图标重新排版，桌面显示更清晰。",
   "publishedAt": "2026-10-23"
 }

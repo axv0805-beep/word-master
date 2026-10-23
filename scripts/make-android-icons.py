@@ -1,61 +1,72 @@
-"""从 build/icon-source.jpg 生成 Android 启动图标（mipmap 各密度）。"""
+"""从 build/icon-source.jpg 生成 Android 启动图标（legacy mipmap + 自适应图标前景）。
+
+用法：python scripts/make-android-icons.py
+图形由 scripts/iconlib.py 抠出并按几何中心对齐，避免源图软阴影导致的偏移。
+"""
 from pathlib import Path
-from PIL import Image, ImageDraw
+
+from PIL import Image
+
+from iconlib import SRC, foreground, load_graphic, plate
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "build" / "icon-source.jpg"
 RES = ROOT / "android" / "app" / "src" / "main" / "res"
 
-DENSITIES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
+# 各密度的 legacy 图标边长（48dp）与自适应图标画布（108dp）
+LEGACY = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
+ADAPTIVE = {"mdpi": 108, "hdpi": 162, "xhdpi": 216, "xxhdpi": 324, "xxxhdpi": 432}
 
+# 图形宽度占画布比例：legacy 大一些更醒目；自适应前景压进 66dp 安全区
+LEGACY_RATIO = 0.66
+FOREGROUND_RATIO = 0.56
+PLATE_TOP, PLATE_BOTTOM = "#FCFEFB", "#EFF8EA"
 
-def trim_white(img: Image.Image, margin_ratio: float = 0.052) -> Image.Image:
-    """按非白像素裁掉外圈白边，再留一点边距。"""
-    rgb = img.convert("RGB")
-    w, h = rgb.size
-    px = rgb.load()
-    min_x, min_y, max_x, max_y = w, h, 0, 0
-    for y in range(h):
-        for x in range(w):
-            r, g, b = px[x, y]
-            if r < 246 or g < 246 or b < 246:
-                if x < min_x:
-                    min_x = x
-                if x > max_x:
-                    max_x = x
-                if y < min_y:
-                    min_y = y
-                if y > max_y:
-                    max_y = y
-    pad = int(max(max_x - min_x, max_y - min_y) * margin_ratio)
-    min_x = max(0, min_x - pad)
-    min_y = max(0, min_y - pad)
-    max_x = min(w, max_x + pad)
-    max_y = min(h, max_y + pad)
-    side = max(max_x - min_x, max_y - min_y)
-    cx, cy = (min_x + max_x) // 2, (min_y + max_y) // 2
-    box = (cx - side // 2, cy - side // 2, cx + side // 2, cy + side // 2)
-    return img.crop(box).resize((side, side), Image.LANCZOS)
+ADAPTIVE_XML = """<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>
+"""
 
-
-def rounded(img: Image.Image, size: int, radius_ratio: float = 0.219) -> Image.Image:
-    out = img.resize((size, size), Image.LANCZOS).convert("RGBA")
-    mask = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        (0, 0, size - 1, size - 1), radius=int(size * radius_ratio), fill=255
-    )
-    out.putalpha(mask)
-    return out
+COLORS_XML = """<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">{color}</color>
+</resources>
+"""
 
 
 def main() -> None:
-    src = Image.open(SRC)
-    square = trim_white(src)
-    for name, size in DENSITIES.items():
+    if not SRC.exists():
+        raise SystemExit(f"找不到源图 {SRC}")
+
+    graphic = load_graphic()
+
+    for name, size in LEGACY.items():
         folder = RES / f"mipmap-{name}"
         folder.mkdir(parents=True, exist_ok=True)
-        rounded(square, size).save(folder / "ic_launcher.png")
-        print(f"wrote {folder / 'ic_launcher.png'} ({size}x{size})")
+        path = folder / "ic_launcher.png"
+        plate(size, graphic, LEGACY_RATIO, 0.219, PLATE_TOP, PLATE_BOTTOM).save(path, optimize=True)
+        print(f"wrote {path.relative_to(ROOT)} ({size}x{size})")
+
+    for name, size in ADAPTIVE.items():
+        folder = RES / f"mipmap-{name}"
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / "ic_launcher_foreground.png"
+        foreground(size, graphic, FOREGROUND_RATIO).save(path, optimize=True)
+        print(f"wrote {path.relative_to(ROOT)} ({size}x{size})")
+
+    anydpi = RES / "mipmap-anydpi-v26"
+    anydpi.mkdir(parents=True, exist_ok=True)
+    for filename in ("ic_launcher.xml", "ic_launcher_round.xml"):
+        (anydpi / filename).write_text(ADAPTIVE_XML, encoding="utf-8")
+        print(f"wrote {(anydpi / filename).relative_to(ROOT)}")
+
+    values = RES / "values"
+    values.mkdir(parents=True, exist_ok=True)
+    (values / "ic_launcher_background.xml").write_text(
+        COLORS_XML.format(color=PLATE_TOP), encoding="utf-8"
+    )
+    print(f"wrote {(values / 'ic_launcher_background.xml').relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

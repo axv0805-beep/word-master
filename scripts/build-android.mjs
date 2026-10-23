@@ -71,7 +71,8 @@ console.log('[3/5] 拷贝 dist 到 assets/www')
 const wwwDir = path.join(stageApp, 'src', 'main', 'assets', 'www')
 fs.rmSync(wwwDir, { recursive: true, force: true })
 fs.mkdirSync(wwwDir, { recursive: true })
-copyTree(path.join(root, 'dist'), wwwDir, new Set())
+// download/ 是给网页端下载 APK 用的，别塞进 APK 自己
+copyTree(path.join(root, 'dist'), wwwDir, new Set(['download']))
 
 console.log('[4/5] Gradle assembleDebug')
 fs.writeFileSync(path.join(stage, 'local.properties'), `sdk.dir=${sdkDir.replace(/\\/g, '/')}\n`, 'utf8')

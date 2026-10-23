@@ -10,6 +10,12 @@ import { buildStudyPlan, formatFinishDate } from '../core/plan'
 import { THEMES, themeById } from '../core/theme'
 import type { MistakeReplayMode, QuestionType } from '../core/types'
 
+/** 安卓 WebView 壳里已经有原生应用，不需要再提供 APK 下载 */
+function isNativeShell(): boolean {
+  if (typeof window === 'undefined') return false
+  return !!(window as unknown as { AndroidSpeech?: unknown }).AndroidSpeech
+}
+
 const QUESTION_TYPES: Array<{ value: QuestionType; label: string; hint: string }> = [
   { value: 'zh2en', label: '看中选英', hint: '给中文意思，选英文单词 4 选 1' },
   { value: 'en2zh', label: '看英选中', hint: '给英文单词，选中文释义 4 选 1' },
@@ -464,8 +470,44 @@ export function SettingsPage() {
           >
             qwerty-learner
           </a>
-          的公开词库，仅供个人学习使用。界面参考了万词王、百词斩等产品的交互习惯。
+          {' '}的公开词库，仅供个人学习使用。界面参考了万词王、百词斩等产品的交互习惯。
         </p>
+        {!isNativeShell() && (
+          <a
+            href={`${import.meta.env.BASE_URL}download/cimiao-1.0.0.apk`}
+            download="词芽-1.0.0.apk"
+            className="flex items-center gap-3"
+            style={{
+              padding: '10px 12px',
+              borderRadius: 14,
+              background: 'var(--surface-2)',
+              textDecoration: 'none',
+              color: 'var(--text)'
+            }}
+          >
+            <span
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 11,
+                background: 'var(--brand-soft)',
+                color: 'var(--brand-2)',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0
+              }}
+            >
+              <Icon name="download" size={17} />
+            </span>
+            <span className="flex-1">
+              <span style={{ display: 'block', fontWeight: 600, fontSize: '0.86rem' }}>下载安卓安装包</span>
+              <span className="faint" style={{ display: 'block', fontSize: '0.72rem', marginTop: 2 }}>
+                APK · 1.3 MB · 传到手机点开即装
+              </span>
+            </span>
+            <Icon name="chevronRight" size={16} className="faint" />
+          </a>
+        )}
       </div>
       <div style={{ height: 16 }} />
     </div>

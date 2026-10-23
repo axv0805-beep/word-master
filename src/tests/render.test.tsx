@@ -441,7 +441,7 @@ describe('界面渲染冒烟测试', () => {
     clickButton('增加')
     expect(useAppStore.getState().settings.roundSize).toBe(before + 5)
 
-    fireEvent.click(screen.getByText('浅色'))
+    fireEvent.click(screen.getByText('晨雾'))
     expect(useAppStore.getState().settings.theme).toBe('light')
 
     fireEvent.click(screen.getByText('轮末复习'))

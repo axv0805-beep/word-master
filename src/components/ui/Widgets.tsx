@@ -9,7 +9,7 @@ export interface StatCardProps {
   accent?: string
 }
 
-export function StatCard({ label, value, hint, icon, accent = '#6366F1' }: StatCardProps) {
+export function StatCard({ label, value, hint, icon, accent = 'var(--brand-1)' }: StatCardProps) {
   return (
     <div className="card p-3.5 flex flex-col gap-1">
       <div className="flex items-center gap-1.5" style={{ fontSize: '0.72rem' }}>
@@ -97,9 +97,9 @@ export function Segmented<T extends string>({
             style={{
               padding: size === 'sm' ? '0.28rem 0.7rem' : '0.42rem 0.95rem',
               fontSize: size === 'sm' ? '0.72rem' : '0.8rem',
-              background: active ? 'linear-gradient(135deg,#6366F1,#8B5CF6)' : 'transparent',
-              color: active ? '#fff' : 'var(--text-muted)',
-              boxShadow: active ? '0 8px 18px -10px rgba(99,102,241,0.9)' : 'none'
+              background: active ? 'linear-gradient(135deg, var(--brand-1), var(--brand-2))' : 'transparent',
+              color: active ? 'var(--on-brand)' : 'var(--text-muted)',
+              boxShadow: active ? '0 8px 18px -12px var(--brand-glow)' : 'none'
             }}
           >
             {option.label}
@@ -175,7 +175,7 @@ export function ProgressBar({ value, className }: { value: number; className?: s
         className="h-full rounded-full"
         style={{
           width: `${clamped * 100}%`,
-          background: 'linear-gradient(90deg,#6366F1,#8B5CF6 55%,#EC4899)',
+          background: 'linear-gradient(90deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3))',
           transition: 'width 360ms cubic-bezier(0.2,0.8,0.2,1)'
         }}
       />
@@ -236,7 +236,7 @@ export function StepDots({ total, current }: { total: number; current: number })
             width: index === current ? 22 : 8,
             height: 8,
             borderRadius: 999,
-            background: index <= current ? 'linear-gradient(90deg,#6366F1,#8B5CF6)' : 'var(--surface-2)',
+            background: index <= current ? 'linear-gradient(90deg, var(--brand-1), var(--brand-2))' : 'var(--surface-2)',
             transition: 'width 220ms ease'
           }}
         />

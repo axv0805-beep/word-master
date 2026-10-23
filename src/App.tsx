@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { TabBar } from './components/TabBar'
 import { ToastHost } from './components/ui/Toast'
@@ -11,14 +11,13 @@ import { StudyPage } from './pages/Study'
 import { OnboardingPage } from './pages/Onboarding'
 import { useAppStore } from './store/appStore'
 import { primeSpeech } from './core/speech'
+import { applyTheme } from './core/theme'
 
 function ThemeSync() {
   const theme = useAppStore((state) => state.settings.theme)
-  useEffect(() => {
-    const root = document.documentElement
-    root.classList.toggle('dark', theme === 'dark')
-    const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0B1120' : '#F5F6FB')
+  // 用 layout effect：主题变量在首帧绘制前落到 <html> 上，避免切主题时闪一下旧配色
+  useLayoutEffect(() => {
+    applyTheme(theme)
   }, [theme])
   return null
 }

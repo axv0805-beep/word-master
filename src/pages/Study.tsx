@@ -226,9 +226,9 @@ function QuestionView({ question, onSubmit }: { question: Question; onSubmit: (i
                 width: 96,
                 height: 96,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
-                color: '#fff',
-                boxShadow: '0 18px 40px -18px rgba(99,102,241,0.95)'
+                background: 'linear-gradient(135deg, var(--brand-1), var(--brand-2))',
+                color: 'var(--on-brand)',
+                boxShadow: '0 18px 40px -18px var(--brand-glow)'
               }}
               onClick={() => void speakWord(question.entry.w, { accent: settings.accent, online: settings.onlineAudio })}
               aria-label="再听一次"
@@ -505,7 +505,12 @@ function RoundResultView({
         </section>
       ) : (
         <div className="card p-5 mt-5 flex items-center gap-3">
-          <span style={{ fontSize: '1.6rem' }}>🎉</span>
+          <span
+            className="grid place-items-center rounded-full"
+            style={{ width: 38, height: 38, background: 'var(--brand-soft)', color: 'var(--brand-1)' }}
+          >
+            <Icon name="sparkle" size={19} />
+          </span>
           <div>
             <div style={{ fontWeight: 700 }}>本轮全对</div>
             <div className="muted" style={{ fontSize: '0.78rem' }}>错题本没有新增，稳！</div>

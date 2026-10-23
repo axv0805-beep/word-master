@@ -50,7 +50,7 @@ export function WordInsights({ entry }: { entry: DictEntry }) {
       {hasForms ? (
         <section className="card p-4">
           <div className="flex items-center gap-1.5 mb-3">
-            <span style={{ color: '#6366F1' }}>
+            <span style={{ color: 'var(--brand-1)' }}>
               <Icon name="refresh" size={15} />
             </span>
             <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>词形变化</span>
@@ -70,7 +70,7 @@ export function WordInsights({ entry }: { entry: DictEntry }) {
                       padding: '0.1rem 0.45rem',
                       fontSize: '0.66rem',
                       background: 'var(--surface-3)',
-                      color: '#8B5CF6',
+                      color: 'var(--brand-2)',
                       borderColor: 'transparent'
                     }}
                   >
@@ -109,7 +109,7 @@ export function WordInsights({ entry }: { entry: DictEntry }) {
       {hasConfusables ? (
         <section className="card p-4">
           <div className="flex items-center gap-1.5 mb-3">
-            <span style={{ color: '#F43F5E' }}>
+            <span style={{ color: 'var(--wrong)' }}>
               <Icon name="alert" size={15} />
             </span>
             <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>易混词</span>

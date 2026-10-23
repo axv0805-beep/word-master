@@ -62,6 +62,9 @@ export type MistakeReplayMode =
   /** 智能间隔（简化 SM-2，跨轮按天安排） */
   | 'srs'
 
+/** 主题 ID：3 套深色 + 3 套浅色，具体色值见 src/index.css */
+export type ThemeId = 'dark' | 'light' | 'aurora' | 'sakura' | 'sunset' | 'ocean'
+
 export interface Settings {
   bookId: string
   /** 每一轮题目数量 */
@@ -81,7 +84,7 @@ export interface Settings {
   /** 优先使用在线真人发音（失败回退系统语音） */
   onlineAudio: boolean
   dailyGoal: number
-  theme: 'dark' | 'light'
+  theme: ThemeId
   /** 拼写题是否显示音标提示 */
   showPhoneticInSpelling: boolean
   /** 是否已完成首次引导（选词书 + 定每日目标） */

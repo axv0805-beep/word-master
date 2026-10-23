@@ -84,7 +84,7 @@ export function OnboardingPage() {
         <div className="flex items-center gap-2">
           <span
             className="flex items-center justify-center rounded-xl"
-            style={{ width: 34, height: 34, background: 'linear-gradient(135deg,#6366F1,#EC4899)', color: '#fff' }}
+            style={{ width: 34, height: 34, background: 'linear-gradient(135deg, var(--brand-1), var(--brand-3))', color: '#fff' }}
           >
             <Icon name="sparkle" size={17} />
           </span>
@@ -128,9 +128,9 @@ export function OnboardingPage() {
                     onClick={() => setBookId(book.id)}
                     className="card p-4 text-left"
                     style={{
-                      borderColor: active ? '#8B5CF6' : 'var(--border)',
+                      borderColor: active ? 'var(--brand-2)' : 'var(--border)',
                       borderWidth: active ? 2 : 1,
-                      boxShadow: active ? '0 14px 34px -22px rgba(139,92,246,0.95)' : undefined,
+                      boxShadow: active ? '0 14px 34px -22px var(--brand-glow)' : undefined,
                       color: 'var(--text)',
                       cursor: 'pointer'
                     }}
@@ -143,8 +143,8 @@ export function OnboardingPage() {
                         style={{
                           width: 22,
                           height: 22,
-                          border: `1.5px solid ${active ? '#8B5CF6' : 'var(--border-strong)'}`,
-                          background: active ? 'linear-gradient(135deg,#6366F1,#8B5CF6)' : 'transparent',
+                          border: `1.5px solid ${active ? 'var(--brand-2)' : 'var(--border-strong)'}`,
+                          background: active ? 'linear-gradient(135deg, var(--brand-1), var(--brand-2))' : 'transparent',
                           color: '#fff',
                           flexShrink: 0
                         }}
@@ -240,7 +240,7 @@ export function OnboardingPage() {
             >
               <p style={{ fontSize: '0.88rem', lineHeight: 1.7 }}>
                 以每天 <strong>{goal}</strong> 词的速度，约需{' '}
-                <strong style={{ color: '#8B5CF6', fontSize: '1.05rem' }}>{plan.days}</strong> 天背完
+                <strong style={{ color: 'var(--brand-2)', fontSize: '1.05rem' }}>{plan.days}</strong> 天背完
                 <strong>{currentBook?.name}</strong>
                 {plan.studiedWords > 0 ? `（还剩 ${plan.remainingWords} 词未学）` : `（共 ${plan.totalWords} 词）`}；
                 每轮 {plan.roundSize} 词，每天约 {plan.roundsPerDay} 轮。
@@ -284,7 +284,7 @@ export function OnboardingPage() {
           </div>
 
           <div className="card p-4 mt-3.5 flex items-start gap-2.5">
-            <span style={{ color: '#F59E0B', flexShrink: 0, marginTop: 2 }}>
+            <span style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 2 }}>
               <Icon name="bulb" size={16} />
             </span>
             <p className="muted" style={{ fontSize: '0.78rem', lineHeight: 1.65 }}>

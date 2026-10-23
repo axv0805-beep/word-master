@@ -164,7 +164,7 @@ function MistakeCard({
             </span>
             <span
               className="chip"
-              style={{ cursor: 'default', padding: '0.14rem 0.5rem', background: 'rgba(244,63,94,0.14)', color: '#F43F5E', borderColor: 'transparent' }}
+              style={{ cursor: 'default', padding: '0.14rem 0.5rem', background: 'color-mix(in srgb, var(--wrong) 16%, transparent)', color: 'var(--wrong)', borderColor: 'transparent' }}
             >
               错 {item.wrong} 次
             </span>

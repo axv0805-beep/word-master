@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 
 export interface ProgressRingProps {
   /** 0..1 */
@@ -33,9 +33,9 @@ export function ProgressRing({
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#6366F1" />
-            <stop offset="55%" stopColor="#8B5CF6" />
-            <stop offset="100%" stopColor="#EC4899" />
+            <stop offset="0%" style={{ stopColor: 'var(--brand-1)' }} />
+            <stop offset="55%" style={{ stopColor: 'var(--brand-2)' }} />
+            <stop offset="100%" style={{ stopColor: 'var(--brand-3)' }} />
           </linearGradient>
         </defs>
         <circle
@@ -99,13 +99,15 @@ export function LineChart({
   height = 132,
   max = 1,
   area = true,
-  color = '#8B5CF6',
+  color = 'var(--brand-2)',
   formatValue,
   className
 }: LineChartProps) {
   const width = 300
   const paddingX = 6
   const paddingY = 12
+  /** 同一页可能有多个折线图，渐变 id 必须唯一，否则后一个会覆盖前一个的填充色 */
+  const areaId = useId().replace(/:/g, '')
   const hasData = values.some((value) => value > 0)
 
   const { linePath, areaPath, points } = useMemo(() => {
@@ -150,9 +152,9 @@ export function LineChart({
     <div className={className}>
       <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none">
         <defs>
-          <linearGradient id="line-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.36" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" style={{ stopColor: color }} stopOpacity="0.36" />
+            <stop offset="100%" style={{ stopColor: color }} stopOpacity="0" />
           </linearGradient>
         </defs>
         {[0.25, 0.5, 0.75].map((ratio) => (
@@ -167,12 +169,19 @@ export function LineChart({
             strokeDasharray="4 6"
           />
         ))}
-        {area ? <path d={areaPath} fill="url(#line-area)" /> : null}
-        <path d={linePath} fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        {area ? <path d={areaPath} fill={`url(#${areaId})`} /> : null}
+        <path
+          d={linePath}
+          fill="none"
+          style={{ stroke: color }}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
         {lastPoint ? (
           <>
-            <circle cx={lastPoint.x} cy={lastPoint.y} r="6" fill={color} opacity="0.22" />
-            <circle cx={lastPoint.x} cy={lastPoint.y} r="3.2" fill={color} />
+            <circle cx={lastPoint.x} cy={lastPoint.y} r="6" style={{ fill: color }} opacity="0.22" />
+            <circle cx={lastPoint.x} cy={lastPoint.y} r="3.2" style={{ fill: color }} />
           </>
         ) : null}
       </svg>
@@ -194,7 +203,7 @@ export interface BarChartProps {
 }
 
 /** 轻量柱状图：每日练习量 */
-export function BarChart({ values, labels, height = 90, color = '#6366F1', className }: BarChartProps) {
+export function BarChart({ values, labels, height = 90, color = 'var(--brand-1)', className }: BarChartProps) {
   const max = Math.max(1, ...values)
   if (values.length === 0) {
     return (

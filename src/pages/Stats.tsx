@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Icon } from '../components/ui/Icons'
+import { Icon, type IconName } from '../components/ui/Icons'
 import { Heatmap } from '../components/ui/Heatmap'
 import { BarChart, LineChart } from '../components/ui/Charts'
 import { SectionTitle, Segmented, StatCard } from '../components/ui/Widgets'
@@ -69,12 +69,12 @@ export function StatsPage() {
       </header>
 
       <div className="grid grid-cols-3 gap-2.5">
-        <StatCard label="累计题数" value={questions} icon="target" accent="#6366F1" />
-        <StatCard label="总正确率" value={`${Math.round(accuracy * 100)}%`} icon="check" accent="#10B981" />
-        <StatCard label="掌握词数" value={mastered} icon="bulb" accent="#F59E0B" />
-        <StatCard label="连续打卡" value={`${streak} 天`} icon="flame" accent="#F43F5E" />
-        <StatCard label="学习天数" value={days} icon="clock" accent="#8B5CF6" />
-        <StatCard label="累计时长" value={`${minutes}′`} icon="chart" accent="#0EA5E9" />
+        <StatCard label="累计题数" value={questions} icon="target" accent="var(--brand-1)" />
+        <StatCard label="总正确率" value={`${Math.round(accuracy * 100)}%`} icon="check" accent="var(--correct)" />
+        <StatCard label="掌握词数" value={mastered} icon="bulb" accent="var(--warning)" />
+        <StatCard label="连续打卡" value={`${streak} 天`} icon="flame" accent="var(--wrong)" />
+        <StatCard label="学习天数" value={days} icon="clock" accent="var(--brand-2)" />
+        <StatCard label="累计时长" value={`${minutes}′`} icon="chart" accent="var(--brand-3)" />
       </div>
 
       <SectionTitle title="练习痕迹" action={<span className="faint" style={{ fontSize: '0.7rem' }}>最近 12 周</span>} />
@@ -100,7 +100,7 @@ export function StatsPage() {
 
       <div className="card p-4">
         <div className="flex items-center gap-2 mb-2">
-          <span style={{ color: '#8B5CF6' }}>
+          <span style={{ color: 'var(--brand-2)' }}>
             <Icon name="chart" size={16} />
           </span>
           <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>准确率趋势</span>
@@ -115,7 +115,7 @@ export function StatsPage() {
 
       <div className="card p-4 mt-3">
         <div className="flex items-center gap-2 mb-2">
-          <span style={{ color: '#6366F1' }}>
+          <span style={{ color: 'var(--brand-1)' }}>
             <Icon name="target" size={16} />
           </span>
           <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>每日练习量</span>
@@ -129,7 +129,7 @@ export function StatsPage() {
 
       <div className="card p-4 mt-3">
         <div className="flex items-center gap-2 mb-2">
-          <span style={{ color: '#F59E0B' }}>
+          <span style={{ color: 'var(--warning)' }}>
             <Icon name="bulb" size={16} />
           </span>
           <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>累计掌握词数</span>
@@ -139,7 +139,7 @@ export function StatsPage() {
           labels={series.map((point) => point.label)}
           height={124}
           max={Math.max(10, ...series.map((point) => point.mastered))}
-          color="#F59E0B"
+          color="var(--warning)"
           area={false}
           formatValue={(value) => `当前 ${value} 词`}
         />
@@ -160,7 +160,17 @@ export function StatsPage() {
             className="card p-3 flex flex-col items-center text-center gap-1"
             style={{ opacity: item.unlocked ? 1 : 0.55 }}
           >
-            <span style={{ fontSize: '1.5rem', filter: item.unlocked ? 'none' : 'grayscale(1)' }}>{item.icon}</span>
+            <span
+              className="grid place-items-center rounded-full"
+              style={{
+                width: 38,
+                height: 38,
+                background: item.unlocked ? 'var(--brand-soft)' : 'var(--surface-2)',
+                color: item.unlocked ? 'var(--brand-1)' : 'var(--text-faint)'
+              }}
+            >
+              <Icon name={item.icon as IconName} size={19} />
+            </span>
             <span style={{ fontWeight: 700, fontSize: '0.76rem' }}>{item.name}</span>
             <span className="faint" style={{ fontSize: '0.62rem', lineHeight: 1.4 }}>{item.description}</span>
             <div className="w-full rounded-full mt-1" style={{ height: 4, background: 'var(--surface-2)' }}>
@@ -168,7 +178,7 @@ export function StatsPage() {
                 className="h-full rounded-full"
                 style={{
                   width: `${Math.round(item.progress * 100)}%`,
-                  background: item.unlocked ? 'linear-gradient(90deg,#F59E0B,#EC4899)' : 'var(--border-strong)'
+                  background: item.unlocked ? 'linear-gradient(90deg, var(--warning), var(--brand-3))' : 'var(--border-strong)'
                 }}
               />
             </div>
@@ -203,7 +213,7 @@ export function StatsPage() {
                     style={{
                       fontWeight: 800,
                       fontSize: '1.05rem',
-                      color: round.accuracy >= 0.9 ? 'var(--correct)' : round.accuracy >= 0.6 ? '#F59E0B' : 'var(--wrong)'
+                      color: round.accuracy >= 0.9 ? 'var(--correct)' : round.accuracy >= 0.6 ? 'var(--warning)' : 'var(--wrong)'
                     }}
                   >
                     {Math.round(round.accuracy * 100)}%

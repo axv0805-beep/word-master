@@ -151,77 +151,77 @@ export function buildAchievements(input: AchievementInput): Achievement[] {
       id: 'first-round',
       name: '初次启程',
       description: '完成第一轮练习',
-      icon: '🌱',
+      icon: 'play',
       value: ratio(rounds.length, 1)
     },
     {
       id: 'questions-100',
       name: '百题斩',
       description: '累计作答 100 题',
-      icon: '⚔️',
+      icon: 'target',
       value: ratio(questions, 100)
     },
     {
       id: 'questions-1000',
       name: '千题不倒',
       description: '累计作答 1000 题',
-      icon: '🏔️',
+      icon: 'chart',
       value: ratio(questions, 1000)
     },
     {
       id: 'streak-3',
       name: '三日之约',
       description: '连续打卡 3 天',
-      icon: '🔥',
+      icon: 'flame',
       value: ratio(streak, 3)
     },
     {
       id: 'streak-7',
       name: '一周之势',
       description: '连续打卡 7 天',
-      icon: '🌟',
+      icon: 'sparkle',
       value: ratio(streak, 7)
     },
     {
       id: 'streak-30',
       name: '月度坚持',
       description: '连续打卡 30 天',
-      icon: '👑',
+      icon: 'clock',
       value: ratio(streak, 30)
     },
     {
       id: 'accuracy-90',
       name: '火眼金睛',
       description: '单轮准确率达到 90%',
-      icon: '🎯',
+      icon: 'check',
       value: ratio(bestAccuracy, 0.9)
     },
     {
       id: 'perfect-round',
       name: '完美一轮',
       description: '完成一轮全对',
-      icon: '💯',
+      icon: 'check',
       value: hasPerfect ? 1 : 0
     },
     {
       id: 'mastered-100',
       name: '百词入心',
       description: '掌握 100 个单词',
-      icon: '📚',
+      icon: 'book',
       value: ratio(mastered, 100)
     },
     {
       id: 'mastered-500',
       name: '五百成军',
       description: '掌握 500 个单词',
-      icon: '🏆',
+      icon: 'book',
       value: ratio(mastered, 500)
     },
     {
       id: 'clear-mistakes',
       name: '扫清障碍',
       description: '错题本清空',
-      icon: '🧹',
+      icon: 'refresh',
       value: mistakeCount === 0 && rounds.length > 0 ? 1 : 0
     }
   ]

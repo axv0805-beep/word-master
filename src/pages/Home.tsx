@@ -83,7 +83,7 @@ export function HomePage() {
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           title="连续打卡天数"
         >
-          <span style={{ color: streak > 0 ? '#F59E0B' : 'var(--text-faint)' }}>
+          <span style={{ color: streak > 0 ? 'var(--warning)' : 'var(--text-faint)' }}>
             <Icon name="flame" size={16} />
           </span>
           <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>{streak}</span>
@@ -96,12 +96,14 @@ export function HomePage() {
         <div
           style={{
             position: 'absolute',
-            right: -40,
-            top: -50,
-            width: 170,
-            height: 170,
+            right: -46,
+            top: -58,
+            width: 180,
+            height: 180,
             borderRadius: '50%',
-            background: 'rgba(255,255,255,0.14)'
+            background:
+              'conic-gradient(from 195deg, rgba(255,255,255,0.34), rgba(255,255,255,0.05) 42%, transparent 68%)',
+            filter: 'blur(3px)'
           }}
         />
         <div className="flex items-center justify-between gap-4 relative">
@@ -117,7 +119,7 @@ export function HomePage() {
               <button
                 type="button"
                 className="btn btn-md"
-                style={{ background: '#fff', color: '#4F46E5', fontWeight: 700, padding: '0.68rem 1rem' }}
+                style={{ background: 'var(--on-brand)', color: 'var(--brand-1)', fontWeight: 700, padding: '0.68rem 1rem' }}
                 onClick={() => void handleStart('alpha')}
                 disabled={starting}
               >
@@ -128,9 +130,10 @@ export function HomePage() {
                 type="button"
                 className="btn btn-md"
                 style={{
-                  background: 'rgba(255,255,255,0.18)',
+                  background: 'rgba(15,23,42,0.26)',
                   color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.4)',
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  backdropFilter: 'blur(8px)',
                   padding: '0.68rem 1rem'
                 }}
                 onClick={() => void handleStart('random')}
@@ -187,9 +190,9 @@ export function HomePage() {
 
       {/* 今日速览 */}
       <div className="grid grid-cols-3 gap-2.5 mt-3.5">
-        <StatCard label="今日正确率" value={`${Math.round(todayAccuracy * 100)}%`} icon="target" accent="#10B981" />
-        <StatCard label="累计练习" value={totalQuestions(daily)} hint={`${totalMinutes(daily)} 分钟`} icon="clock" accent="#6366F1" />
-        <StatCard label="已掌握" value={masteredCount} hint="连续答对达标" icon="bulb" accent="#F59E0B" />
+        <StatCard label="今日正确率" value={`${Math.round(todayAccuracy * 100)}%`} icon="target" accent="var(--correct)" />
+        <StatCard label="累计练习" value={totalQuestions(daily)} hint={`${totalMinutes(daily)} 分钟`} icon="clock" accent="var(--brand-1)" />
+        <StatCard label="已掌握" value={masteredCount} hint="连续答对达标" icon="bulb" accent="var(--warning)" />
       </div>
 
       {/* 当前词书 */}
@@ -209,7 +212,7 @@ export function HomePage() {
               <div className="flex items-center gap-2.5">
                 <span
                   className="flex items-center justify-center rounded-xl"
-                  style={{ width: 40, height: 40, background: 'var(--surface-3)', color: '#8B5CF6' }}
+                  style={{ width: 40, height: 40, background: 'var(--surface-3)', color: 'var(--brand-2)' }}
                 >
                   <Icon name="book" size={20} />
                 </span>
@@ -221,7 +224,7 @@ export function HomePage() {
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: 700, color: '#8B5CF6' }}>{Math.round(progressRatio * 100)}%</div>
+                <div style={{ fontWeight: 700, color: 'var(--brand-2)' }}>{Math.round(progressRatio * 100)}%</div>
                 <div className="faint" style={{ fontSize: '0.68rem' }}>学习进度</div>
               </div>
             </div>
@@ -248,7 +251,7 @@ export function HomePage() {
           <div className="flex items-center gap-3">
             <span
               className="flex items-center justify-center rounded-xl"
-              style={{ width: 42, height: 42, background: 'rgba(244,63,94,0.14)', color: '#F43F5E' }}
+              style={{ width: 42, height: 42, background: 'color-mix(in srgb, var(--wrong) 16%, transparent)', color: 'var(--wrong)' }}
             >
               <Icon name="alert" size={21} />
             </span>

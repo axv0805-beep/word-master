@@ -105,9 +105,9 @@ export function BooksPage() {
                 key={book.id}
                 className="card p-4"
                 style={{
-                  borderColor: active ? '#8B5CF6' : 'var(--border)',
+                  borderColor: active ? 'var(--brand-2)' : 'var(--border)',
                   borderWidth: active ? 2 : 1,
-                  boxShadow: active ? '0 14px 34px -22px rgba(139,92,246,0.95)' : undefined
+                  boxShadow: active ? '0 14px 34px -22px var(--brand-glow)' : undefined
                 }}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -185,7 +185,7 @@ export function BooksPage() {
           }}
         />
         <p className="faint" style={{ fontSize: '0.7rem', lineHeight: 1.6 }}>
-          支持每行「单词,中文释义」的 CSV，或 <code>{'[{"w":"abandon","t":["放弃"]}]'}</code> 形式的 JSON。
+          支持每行「单词」与「中文释义」用逗号分隔的 CSV，或 <code>{'[{"w":"abandon","t":["放弃"]}]'}</code> 形式的 JSON。
         </p>
       </div>
 

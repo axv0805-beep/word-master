@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import { Icon } from '../components/ui/Icons'
 import { SectionTitle, Segmented, Stepper } from '../components/ui/Widgets'
+import { ThemePicker } from '../components/ThemePicker'
 import { useToast } from '../components/ui/Toast'
 import { useBookList } from '../hooks/useDictionary'
 import { exportBackup, importBackup, useAppStore } from '../store/appStore'
 import { MIN_ROUND_SIZE, ROUND_SIZE_STEP, maxRoundSizeFor } from '../core/constants'
 import { buildStudyPlan, formatFinishDate } from '../core/plan'
+import { THEMES, themeById } from '../core/theme'
 import type { MistakeReplayMode, QuestionType } from '../core/types'
 
 const QUESTION_TYPES: Array<{ value: QuestionType; label: string; hint: string }> = [
@@ -64,7 +66,8 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (val
         height: 28,
         borderRadius: 999,
         border: '1px solid var(--border)',
-        background: checked ? 'linear-gradient(135deg,#6366F1,#8B5CF6)' : 'var(--surface-2)',
+        background: checked ? 'linear-gradient(135deg, var(--brand-1), var(--brand-2))' : 'var(--surface-2)',
+        boxShadow: checked ? '0 8px 18px -12px var(--brand-glow)' : 'none',
         position: 'relative',
         flexShrink: 0,
         transition: 'background 180ms ease',
@@ -170,7 +173,7 @@ export function SettingsPage() {
                 </div>
               </div>
               <div className="text-right" style={{ flexShrink: 0 }}>
-                <div style={{ fontWeight: 800, fontSize: '1.25rem', color: '#8B5CF6' }}>
+                <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--brand-2)' }}>
                   {plan.days === 0 ? '已背完' : `${plan.days} 天`}
                 </div>
                 <div className="faint" style={{ fontSize: '0.68rem' }}>
@@ -262,7 +265,7 @@ export function SettingsPage() {
                   className="rounded-2xl px-3 py-2.5 text-left"
                   style={{
                     background: active ? 'var(--surface-3)' : 'var(--surface-2)',
-                    border: `1.5px solid ${active ? '#8B5CF6' : 'var(--border)'}`,
+                    border: `1.5px solid ${active ? 'var(--brand-2)' : 'var(--border)'}`,
                     color: 'var(--text)',
                     cursor: 'pointer'
                   }}
@@ -337,18 +340,14 @@ export function SettingsPage() {
       </div>
 
       <SectionTitle title="外观" />
-      <div className="card overflow-hidden">
-        <Row title="主题">
-          <Segmented
-            size="sm"
-            options={[
-              { value: 'dark' as const, label: '深色' },
-              { value: 'light' as const, label: '浅色' }
-            ]}
-            value={settings.theme}
-            onChange={(value) => updateSettings({ theme: value })}
-          />
-        </Row>
+      <div className="card p-4">
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>主题配色</div>
+          <div className="faint" style={{ fontSize: '0.7rem', marginTop: 2, lineHeight: 1.5 }}>
+            当前「{themeById(settings.theme).name}」· 共 {THEMES.length} 套配色，选中立即生效
+          </div>
+        </div>
+        <ThemePicker value={settings.theme} onChange={(theme) => updateSettings({ theme })} />
       </div>
 
       <SectionTitle title="数据管理" />
@@ -444,7 +443,7 @@ export function SettingsPage() {
         <div className="flex items-center gap-2">
           <span
             className="flex items-center justify-center rounded-xl"
-            style={{ width: 36, height: 36, background: 'linear-gradient(135deg,#6366F1,#EC4899)', color: '#fff' }}
+            style={{ width: 36, height: 36, background: 'linear-gradient(135deg, var(--brand-1), var(--brand-3))', color: '#fff' }}
           >
             <Icon name="sparkle" size={18} />
           </span>
@@ -460,7 +459,7 @@ export function SettingsPage() {
             href="https://github.com/RealKai42/qwerty-learner"
             target="_blank"
             rel="noreferrer"
-            style={{ color: '#8B5CF6', marginLeft: 4 }}
+            style={{ color: 'var(--brand-2)', marginLeft: 4 }}
           >
             qwerty-learner
           </a>

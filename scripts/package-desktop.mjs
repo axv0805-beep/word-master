@@ -1,8 +1,8 @@
 /**
  * 把构建产物打包成免安装的 Windows 桌面程序。
  *
- * 产物：release/单词王-win32-x64/单词王.exe（整个文件夹即为程序，双击 exe 运行）
- *       release/单词王-桌面版.zip（方便拷贝/分发）
+ * 产物：release/词芽-win32-x64/词芽.exe（整个文件夹即为程序，双击 exe 运行）
+ *       release/词芽-桌面版.zip（方便拷贝/分发）
  *
  * 用法：npm run package:desktop        # 先构建再打包
  *       npm run package:desktop -- --no-build   # 跳过构建，直接用现有 dist/
@@ -15,7 +15,7 @@ import { ensureElectronRuntime, ensureRcedit } from './electron-runtime.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
-const APP_NAME = '单词王'
+const APP_NAME = '词芽'
 const OUT_DIR = path.join(ROOT, 'release', `${APP_NAME}-win32-x64`)
 
 const skipBuild = process.argv.includes('--no-build')
@@ -76,7 +76,7 @@ fs.writeFileSync(
       version: '1.0.0',
       private: true,
       main: 'electron/main.cjs',
-      description: '单词王 · 手机优先的背单词应用（桌面版）'
+      description: '词芽 · 手机优先的背单词应用（桌面版）'
     },
     null,
     2
@@ -101,7 +101,7 @@ if (fs.existsSync(iconPath) && process.platform === 'win32') {
       APP_NAME,
       '--set-version-string',
       'FileDescription',
-      '单词王 · 背单词',
+      '词芽 · 背单词',
       '--set-file-version',
       '1.0.0',
       '--set-product-version',

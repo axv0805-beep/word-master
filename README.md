@@ -1,4 +1,4 @@
-# 单词王 · 背单词
+# 词芽 · 背单词
 
 一个**手机优先、可离线**的背单词 Web App（PWA），完整实现需求清单里的模块与功能，界面参考万词王、百词斩等产品的交互习惯。
 
@@ -47,11 +47,32 @@ npm run package:desktop
 
 | 路径 | 说明 |
 |---|---|
-| `release/单词王-win32-x64/单词王.exe` | 双击运行（整个文件夹就是程序，别只拷 exe） |
-| `release/单词王-桌面版.zip` | 整个程序目录的压缩包，方便拷贝/分发 |
+| `release/词芽-win32-x64/词芽.exe` | 双击运行（整个文件夹就是程序，别只拷 exe） |
+| `release/词芽-桌面版.zip` | 整个程序目录的压缩包，方便拷贝/分发 |
 
 > 桌面壳内置了一个只监听 `127.0.0.1` 的静态服务器，所以不会再遇到 `file://` 的白屏问题；F12 可打开开发者工具。
 > 首次打包会下载约 110 MB 的 Electron 运行时到 `.electron/`（已加入 `.gitignore`），之后复用。
+
+### 安卓版（APK）
+
+原生 WebView 壳 + `WebViewAssetLoader`（把 `dist` 当作虚拟域名 `https://appassets.androidplatform.net/assets/www/` 提供，绕开 `file://` 的 CORS），页面里调起的发音走系统 `TextToSpeech`（WebView 没有 Web Speech API）。
+
+```bash
+npm run package:android
+```
+
+产物：`release/词芽-安卓.apk`。传到手机点开安装即可（系统会提示「未知来源」，选择允许）。
+
+首次构建依赖本地工具链，都在项目外（不进仓库）：
+
+| 内容 | 路径 |
+|---|---|
+| Android SDK（platform 34 / build-tools 34） | `D:\A-WWW\DS-harness\android-toolchain\sdk` |
+| Gradle 8.7 | `D:\A-WWW\DS-harness\android-toolchain\gradle-8.7` |
+| JDK 17 | `C:\Program Files\Java\jdk-17` |
+
+> Gradle 构建在 ASCII 路径的暂存副本里跑（`D:\A-WWW\DS-harness\android-build`），因为 AGP 在 Windows 上不接受含中文的项目路径。
+> 应用包名 `com.cimiao.app`，minSdk 23 / targetSdk 34，目前用 debug 签名，可直接安装自用；上架应用商店需要换成正式签名。
 
 ### 常用脚本
 
@@ -68,6 +89,8 @@ npm run package:desktop
 | `npm run verify:all` | `verify` + `verify:ui`，完整验收 |
 | `npm run electron:dev` | 桌面窗口里调试（Electron） |
 | `npm run package:desktop` | 打包 Windows 免安装桌面程序到 `release/` |
+| `npm run package:android` | 打包安卓 APK 到 `release/词芽-安卓.apk` |
+| `npm run icons` | 从 `build/icon-source.jpg` 重新生成网页与安卓两套图标 |
 
 ---
 

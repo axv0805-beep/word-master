@@ -341,7 +341,7 @@ export function importBackup(text: string): ImportResult {
 
   const data = asRecord(parsed)
   if (data.app !== 'word-master') {
-    return { ok: false, message: '这不是「单词王」导出的备份文件' }
+    return { ok: false, message: '这不是「词芽」导出的备份文件' }
   }
 
   const progress = asRecord(data.progress) as unknown as ProgressMap

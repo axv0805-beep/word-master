@@ -13,8 +13,20 @@ export interface SpeakOptions {
 let cachedVoices: SpeechSynthesisVoice[] = []
 let audioEl: HTMLAudioElement | null = null
 
+/** 安卓壳注入的原生发音桥（WebView 没有 Web Speech API） */
+interface AndroidSpeechBridge {
+  speak(text: string, lang: string, rate: number): void
+  stop(): void
+}
+
+function androidSpeech(): AndroidSpeechBridge | undefined {
+  if (typeof window === 'undefined') return undefined
+  return (window as unknown as { AndroidSpeech?: AndroidSpeechBridge }).AndroidSpeech
+}
+
 export function isSpeechSupported(): boolean {
   if (typeof window === 'undefined') return false
+  if (androidSpeech()) return true
   const synth = window.speechSynthesis
   return !!synth && typeof synth.speak === 'function'
 }
@@ -55,7 +67,22 @@ function pickVoice(accent: 'us' | 'uk'): SpeechSynthesisVoice | undefined {
 /** 系统语音合成；返回 Promise 便于拼读时按顺序朗读 */
 export function speakWithTts(text: string, accent: 'us' | 'uk', rate = 0.9): Promise<void> {
   return new Promise((resolve) => {
-    if (!isSpeechSupported() || !text) {
+    if (!text) {
+      resolve()
+      return
+    }
+    const bridge = androidSpeech()
+    if (bridge) {
+      try {
+        bridge.speak(text, accent === 'us' ? 'en-US' : 'en-GB', rate)
+      } catch {
+        /* 忽略 */
+      }
+      // 原生播报没有回调，按文本长度估算结束时间
+      setTimeout(resolve, Math.max(1200, text.length * 260))
+      return
+    }
+    if (!isSpeechSupported()) {
       resolve()
       return
     }
@@ -166,7 +193,8 @@ export async function spellWord(word: string, options: SpeakOptions): Promise<vo
 
 /** 停止所有正在播放的发音 */
 export function stopSpeaking(): void {
-  if (isSpeechSupported()) {
+  androidSpeech()?.stop()
+  if (isSpeechSupported() && !androidSpeech()) {
     try {
       window.speechSynthesis.cancel?.()
     } catch {

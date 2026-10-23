@@ -1,0 +1,36 @@
+plugins {
+  id 'com.android.application'
+}
+
+android {
+  namespace 'com.cimiao.app'
+  compileSdk 34
+
+  defaultConfig {
+    applicationId 'com.cimiao.app'
+    minSdk 23
+    targetSdk 34
+    versionCode 1
+    versionName '1.0.0'
+  }
+
+  buildTypes {
+    debug {
+      signingConfig signingConfigs.debug
+    }
+    release {
+      minifyEnabled false
+      signingConfig signingConfigs.debug
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}
+
+dependencies {
+  // WebViewAssetLoader：把打包进 assets 的前端当 https:// 站点加载，避开 file:// 的 CORS 限制
+  implementation 'androidx.webkit:webkit:1.11.0'
+}

@@ -9,20 +9,31 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
+      includeAssets: [
+        'icons/favicon.ico',
+        'icons/favicon-32.png',
+        'icons/apple-touch-icon.png',
+        'icons/icon-192.png',
+        'icons/icon-512.png'
+      ],
       manifest: {
-        name: '单词王 · 背单词',
-        short_name: '单词王',
+        name: '词芽 · 背单词',
+        short_name: '词芽',
         description: '手机优先的背单词应用：字母顺序背词、随机抽词、错题专项、成长曲线',
-        theme_color: '#6366F1',
-        background_color: '#0F172A',
+        theme_color: '#F1FAF3',
+        background_color: '#F1FAF3',
         display: 'standalone',
         orientation: 'portrait',
         start_url: './index.html',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+          {
+            src: 'icons/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
+          }
         ]
       },
       workbox: {

@@ -82,13 +82,14 @@ export function OnboardingPage() {
     <div className="px-5 pt-6 pb-10">
       <header className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <span
-            className="flex items-center justify-center rounded-xl"
-            style={{ width: 34, height: 34, background: 'linear-gradient(135deg, var(--brand-1), var(--brand-3))', color: '#fff' }}
-          >
-            <Icon name="sparkle" size={17} />
-          </span>
-          <span style={{ fontWeight: 800 }}>单词王</span>
+          <img
+            src={`${import.meta.env.BASE_URL}icons/logo-512.png`}
+            alt=""
+            width={34}
+            height={34}
+            style={{ borderRadius: 10, boxShadow: '0 8px 18px -10px var(--brand-glow)' }}
+          />
+          <span style={{ fontWeight: 800 }}>词芽</span>
         </div>
         <StepDots total={3} current={step} />
       </header>

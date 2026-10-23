@@ -1,5 +1,5 @@
 /**
- * 单词王 桌面壳（Electron）
+ * 词芽 桌面壳（Electron）
  *
  * 为什么内置一个本地静态服务器：生产构建是 ES module + PWA，
  * 直接用 file:// 打开会被浏览器按 CORS 拦掉（脚本/样式全部加载失败），
@@ -86,7 +86,7 @@ async function createWindow(server) {
     resizable: true,
     autoHideMenuBar: true,
     backgroundColor: '#0F172A',
-    title: '单词王 · 背单词',
+    title: '词芽 · 背单词',
     icon: iconPath,
     webPreferences: {
       contextIsolation: true,

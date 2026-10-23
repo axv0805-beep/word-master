@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "main": "electron/main.cjs",
-  "description": "单词王 - 手机优先的背单词 Web App（四级/六级/高考/中考）",
+  "description": "词芽 - 手机优先的背单词 Web App（四级/六级/高考/中考）",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -17,7 +17,9 @@
     "verify:ui": "node scripts/verify-ui.mjs",
     "verify:all": "node scripts/verify-dicts.mjs && tsc --noEmit && vitest run && vite build && node scripts/verify-ui.mjs",
     "electron:dev": "node scripts/electron-dev.mjs",
-    "package:desktop": "node scripts/package-desktop.mjs"
+    "package:desktop": "node scripts/package-desktop.mjs",
+    "package:android": "node scripts/build-android.mjs",
+    "icons": "python scripts/make-icons.py && python scripts/make-android-icons.py"
   },
   "dependencies": {
     "clsx": "2.1.1",

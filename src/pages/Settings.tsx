@@ -137,7 +137,7 @@ export function SettingsPage() {
     const anchor = document.createElement('a')
     const stamp = new Date().toISOString().slice(0, 10)
     anchor.href = url
-    anchor.download = `单词王-备份-${stamp}.json`
+    anchor.download = `词芽-备份-${stamp}.json`
     anchor.click()
     URL.revokeObjectURL(url)
     showToast('备份已导出', 'success')
@@ -441,14 +441,15 @@ export function SettingsPage() {
       <SectionTitle title="关于" />
       <div className="card p-4 flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <span
-            className="flex items-center justify-center rounded-xl"
-            style={{ width: 36, height: 36, background: 'linear-gradient(135deg, var(--brand-1), var(--brand-3))', color: '#fff' }}
-          >
-            <Icon name="sparkle" size={18} />
-          </span>
+          <img
+            src={`${import.meta.env.BASE_URL}icons/logo-512.png`}
+            alt=""
+            width={36}
+            height={36}
+            style={{ borderRadius: 11, boxShadow: '0 8px 18px -10px var(--brand-glow)' }}
+          />
           <div>
-            <div style={{ fontWeight: 700 }}>单词王 · 背单词</div>
+            <div style={{ fontWeight: 700 }}>词芽 · 背单词</div>
             <div className="faint" style={{ fontSize: '0.72rem' }}>版本 1.0.0 · 手机优先的离线词卡应用</div>
           </div>
         </div>

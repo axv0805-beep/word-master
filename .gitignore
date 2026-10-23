@@ -13,6 +13,16 @@ artifacts/
 .electron/
 release/
 
+# 安卓打包（本地工具链与产物）
+.android-build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/build/
+android/build/
+android/app/src/main/assets/www/
+android/capacitor-cordova-android-plugins/
+
 # 编辑器 / 系统
 .vscode/*
 !.vscode/extensions.json

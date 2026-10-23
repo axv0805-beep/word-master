@@ -46,7 +46,9 @@ export default function App() {
         <div className="app-bg" aria-hidden="true" />
         <ThemeSync />
         <div className="phone-shell">
-          <OnboardingPage />
+          <div className="page-shell">
+            <OnboardingPage />
+          </div>
         </div>
         <ToastHost />
       </>
@@ -61,7 +63,12 @@ export default function App() {
       <ThemeSync />
       <ScrollToTop />
       <div className="phone-shell">
-        <div style={{ paddingBottom: isStudy ? 0 : 'calc(78px + env(safe-area-inset-bottom, 0px))' }}>
+        {/* key 跟着 pathname 走：切页时整块重新挂载，.page-shell 的入场动画就重新播一次 */}
+        <div
+          key={location.pathname}
+          className="page-shell"
+          style={{ paddingBottom: isStudy ? 0 : 'calc(78px + env(safe-area-inset-bottom, 0px))' }}
+        >
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/books" element={<BooksPage />} />

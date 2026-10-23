@@ -615,6 +615,25 @@
     border-radius: 0.9rem;
   }
 
+  /* 不确定进度：总大小还没拿到时来回滚动，表示「在下」而不是卡死 */
+  .progress-indeterminate {
+    animation: progress-slide 1.3s ease-in-out infinite;
+  }
+
+  /* ------------------------------------------------------------
+     页面入场：路由容器带 key={pathname}，切页时整块重新挂载，
+     于是这段动画就成了一次「淡入 + 轻微上移」的过场。
+     开屏还没让位时先不播（html 上没有 .app-ready），等 main.tsx
+     把 .app-ready 挂上，内容正好和开屏淡出同时进来。
+     ------------------------------------------------------------ */
+  .page-shell {
+    animation: page-in 380ms cubic-bezier(0.22, 0.9, 0.28, 1) both;
+  }
+
+  html:not(.app-ready) .page-shell {
+    animation: none;
+  }
+
   /* ------------------------------------------------------------
      主题选择器（设置页）
      ------------------------------------------------------------ */
@@ -748,6 +767,28 @@
   }
 }
 
+/* 进度条不确定态：从最左滑到最右（34% 宽的条，位移按自身宽度算） */
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(296%);
+  }
+}
+
+/* 页面入场：淡入 + 上移 10px */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-bg::after {
     animation: none;
@@ -755,6 +796,15 @@
 
   .skeleton {
     animation: none;
+  }
+
+  .page-shell {
+    animation: none;
+  }
+
+  .progress-indeterminate {
+    animation: none;
+    transform: translateX(96%);
   }
 
   *,

@@ -4,7 +4,7 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.5'
+export const APP_VERSION = '1.1.6'
 
 /**
  * 应用内更新检查的地址。
@@ -40,6 +40,61 @@ export interface UpdateCallbacks {
   onAvailable: (raw: string) => void
   onNone: () => void
   onError: () => void
+}
+
+/**
+ * 下载安装包时的进度事件（安卓壳通过 window.__updateProgress 推送）。
+ * 原生只负责报「阶段 + 已下载/总字节」，百分比与网速由页面自己算，
+ * 这样拿不到 Content-Length 时也能退化成不确定进度条。
+ */
+export interface UpdateProgress {
+  phase: 'downloading' | 'verifying' | 'installing' | 'failed' | 'done'
+  /** 已下载字节数 */
+  received?: number
+  /** 总字节数；-1 表示服务器没给 Content-Length */
+  total?: number
+  /** 第几次尝试（下载失败会自动重试） */
+  attempt?: number
+  /** failed / done 时给用户看的原因 */
+  message?: string
+}
+
+const UPDATE_PHASES: ReadonlyArray<UpdateProgress['phase']> = [
+  'downloading',
+  'verifying',
+  'installing',
+  'failed',
+  'done'
+]
+
+/**
+ * 订阅原生下载进度，返回退订函数。
+ * 网页端（没有安卓桥）调用它是安全的空操作，进度条自然不出现。
+ */
+export function onUpdateProgress(callback: (progress: UpdateProgress) => void): () => void {
+  if (typeof window === 'undefined') return () => {}
+  const w = window as unknown as { __updateProgress?: (raw: string) => void }
+  const handler = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw) as Partial<UpdateProgress> | null
+      if (!parsed || typeof parsed.phase !== 'string') return
+      const phase = parsed.phase as UpdateProgress['phase']
+      if (!UPDATE_PHASES.includes(phase)) return
+      callback({
+        phase,
+        received: typeof parsed.received === 'number' ? parsed.received : undefined,
+        total: typeof parsed.total === 'number' ? parsed.total : undefined,
+        attempt: typeof parsed.attempt === 'number' ? parsed.attempt : undefined,
+        message: typeof parsed.message === 'string' ? parsed.message : undefined
+      })
+    } catch {
+      // 单条坏消息不该打断正在进行的下载：丢掉这一帧进度即可
+    }
+  }
+  w.__updateProgress = handler
+  return () => {
+    if (w.__updateProgress === handler) delete w.__updateProgress
+  }
 }
 
 /** 挂上 window.__update* 回调，调用原生 checkUpdate() */

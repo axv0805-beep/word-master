@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../components/ui/Icons'
-import { SectionTitle, Segmented, Stepper } from '../components/ui/Widgets'
+import { SectionTitle, Segmented, Stepper, ProgressBar } from '../components/ui/Widgets'
 import { ThemePicker } from '../components/ThemePicker'
 import { useToast } from '../components/ui/Toast'
 import { useBookList } from '../hooks/useDictionary'
@@ -9,7 +9,8 @@ import { MIN_ROUND_SIZE, ROUND_SIZE_STEP, maxRoundSizeFor } from '../core/consta
 import { buildStudyPlan, formatFinishDate } from '../core/plan'
 import { THEMES, themeById } from '../core/theme'
 import type { MistakeReplayMode, QuestionType } from '../core/types'
-import { APP_VERSION, UPDATE_MANIFEST_URL, isNativeShell, nativeApp, requestUpdateCheck } from '../core/native'
+import { APP_VERSION, UPDATE_MANIFEST_URL, isNativeShell, nativeApp, onUpdateProgress, requestUpdateCheck } from '../core/native'
+import type { UpdateProgress } from '../core/native'
 
 const QUESTION_TYPES: Array<{ value: QuestionType; label: string; hint: string }> = [
   { value: 'zh2en', label: '看中选英', hint: '给中文意思，选英文单词 4 选 1' },
@@ -92,6 +93,118 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (val
   )
 }
 
+type DownloadState = UpdateProgress & { speed?: number }
+
+interface SpeedSample {
+  at: number
+  received: number
+  attempt: number
+  speed: number
+}
+
+/** 用相邻两次回调的增量估下载速度；换了一次重试就重新算，避免把上一轮平均进去 */
+function withSpeed(sample: { current: SpeedSample | null }, progress: UpdateProgress): DownloadState {
+  if (progress.phase !== 'downloading') return { ...progress }
+  const now = Date.now()
+  const received = Math.max(0, progress.received ?? 0)
+  const attempt = progress.attempt ?? 1
+  const prev = sample.current
+  if (!prev || prev.attempt !== attempt || received < prev.received) {
+    sample.current = { at: now, received, attempt, speed: 0 }
+    return { ...progress, speed: 0 }
+  }
+  let speed = prev.speed
+  const elapsed = (now - prev.at) / 1000
+  if (elapsed >= 0.6) {
+    const instant = Math.max(0, (received - prev.received) / elapsed)
+    speed = prev.speed > 0 ? prev.speed * 0.6 + instant * 0.4 : instant
+    sample.current = { at: now, received, attempt, speed }
+  }
+  return { ...progress, speed }
+}
+
+function formatSize(bytes?: number): string {
+  const value = bytes ?? 0
+  if (value <= 0) return '0 MB'
+  const mb = value / (1024 * 1024)
+  return mb >= 10 ? `${mb.toFixed(1)} MB` : `${mb.toFixed(2)} MB`
+}
+
+function formatEta(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return ''
+  if (seconds < 60) return `${Math.ceil(seconds)} 秒`
+  const minutes = Math.floor(seconds / 60)
+  const rest = Math.round(seconds % 60)
+  return rest > 0 ? `${minutes} 分 ${rest} 秒` : `${minutes} 分`
+}
+
+const DOWNLOAD_HEADLINE: Record<UpdateProgress['phase'], string> = {
+  downloading: '正在下载安装包',
+  verifying: '正在校验安装包',
+  installing: '正在打开安装器',
+  done: '下载完成',
+  failed: '更新没有完成'
+}
+
+function UpdateProgressView({ state, version }: { state: DownloadState; version: string }) {
+  const received = Math.max(0, state.received ?? 0)
+  const total = state.total && state.total > 0 ? state.total : 0
+  const ratio = total > 0 ? Math.min(1, received / total) : 0
+  const known = total > 0
+  const percent = known ? Math.floor(ratio * 100) : null
+  const attempt = state.attempt ?? 1
+  const downloading = state.phase === 'downloading'
+
+  const details: string[] = []
+  if (downloading) {
+    details.push(known ? `${formatSize(received)} / ${formatSize(total)}` : `已下载 ${formatSize(received)}`)
+    if (known && received < total && (state.speed ?? 0) > 0) {
+      const eta = formatEta((total - received) / (state.speed ?? 1))
+      if (eta) details.push(`还剩约 ${eta}`)
+    }
+    if (attempt > 1) details.push(`第 ${attempt} 次尝试`)
+    details.push('请勿关闭应用')
+  } else if (state.phase === 'verifying') {
+    details.push('确认文件完整后会自动打开安装器')
+  } else if (state.phase === 'installing') {
+    details.push('安装界面没出现？可以改用浏览器下载')
+  } else if (state.phase === 'done') {
+    details.push('按系统提示覆盖安装即可，学习数据会保留')
+  } else {
+    if (known) details.push(`${formatSize(received)} / ${formatSize(total)}`)
+    details.push(state.message || '网络中断了，可以重新下载')
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div className="flex items-center justify-between" style={{ gap: 10 }}>
+        <span
+          style={{
+            fontWeight: 600,
+            fontSize: '0.82rem',
+            color: state.phase === 'failed' ? 'var(--wrong)' : undefined
+          }}
+        >
+          {DOWNLOAD_HEADLINE[state.phase]}
+        </span>
+        <span className="faint" style={{ fontSize: '0.78rem', flexShrink: 0 }}>
+          {percent === null ? (downloading ? '下载中' : '') : `${percent}%`}
+        </span>
+      </div>
+      <ProgressBar
+        className="mt-2"
+        value={downloading || state.phase === 'failed' ? ratio : 1}
+        indeterminate={downloading && !known}
+        tone={state.phase === 'failed' ? 'danger' : 'brand'}
+        ariaLabel={`v${version} 更新下载进度`}
+      />
+      <p className="faint" style={{ fontSize: '0.72rem', marginTop: 6, lineHeight: 1.6 }}>
+        {details.join(' · ')}
+      </p>
+    </div>
+  )
+}
+
 export function SettingsPage() {
   const settings = useAppStore((state) => state.settings)
   const updateSettings = useAppStore((state) => state.updateSettings)
@@ -110,6 +223,41 @@ export function SettingsPage() {
     url: string
     notes?: string
   } | null>(null)
+  const [updateJob, setUpdateJob] = useState<DownloadState | null>(null)
+  const speedSample = useRef<SpeedSample | null>(null)
+
+  // 下载进度只由安卓壳通过 window.__updateProgress 推送，网页端订阅了也收不到事件
+  const lastBytes = useRef<{ received: number; total: number } | null>(null)
+  useEffect(
+    () =>
+      onUpdateProgress((progress) => {
+        if (progress.phase === 'downloading' && (progress.received ?? 0) > 0) {
+          lastBytes.current = { received: progress.received ?? 0, total: progress.total ?? -1 }
+        }
+        // 原生失败时会把已下载量清成 0，这里用最后一次真实进度把进度条冻在原地，
+        // 否则用户看到的是「一个字节都没下下来」
+        const stalled =
+          progress.phase === 'failed' && (progress.total ?? -1) <= 0 && lastBytes.current
+            ? { ...progress, ...lastBytes.current }
+            : progress
+        setUpdateJob(withSpeed(speedSample, stalled))
+      }),
+    []
+  )
+
+  function startInstall() {
+    if (!app || !update) return
+    speedSample.current = null
+    lastBytes.current = null
+    // 先点亮进度条：第一个进度事件要等连接建立后才会来
+    setUpdateJob({ phase: 'downloading', received: 0, total: -1, attempt: 1, speed: 0 })
+    try {
+      app.installUpdate(update.url)
+    } catch {
+      setUpdateJob({ phase: 'failed', message: '调起下载失败，请改用浏览器下载' })
+      showToast('调起下载失败，请改用浏览器下载', 'error')
+    }
+  }
 
   function checkUpdate() {
     if (!app) return
@@ -125,6 +273,7 @@ export function SettingsPage() {
             notes?: string
           }
           setUpdate({ ...info, url: new URL(info.url, UPDATE_MANIFEST_URL).href })
+          setUpdateJob(null)
           showToast(`发现新版本 v${info.versionName}`)
         } catch {
           showToast('版本信息解析失败', 'error')
@@ -133,6 +282,7 @@ export function SettingsPage() {
       onNone: () => {
         setChecking(false)
         setUpdate(null)
+        setUpdateJob(null)
         showToast('已经是最新版本')
       },
       onError: () => {
@@ -598,25 +748,49 @@ export function SettingsPage() {
                     {update.notes}
                   </p>
                 )}
-                <button
-                  type="button"
-                  className="btn btn-primary btn-md w-full mt-3"
-                  onClick={() => {
-                    app.installUpdate(update.url)
-                    showToast('开始下载，下载完成后按系统提示安装')
-                  }}
-                >
-                  <Icon name="download" size={16} />
-                  立即更新
-                </button>
-                {app.openInBrowser && (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm w-full mt-2"
-                    onClick={() => app.openInBrowser?.(update.url)}
-                  >
-                    下载失败？改用浏览器下载
-                  </button>
+                {updateJob ? (
+                  <>
+                    <UpdateProgressView state={updateJob} version={update.versionName} />
+                    {updateJob.phase === 'failed' && (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-md w-full mt-3"
+                        onClick={startInstall}
+                      >
+                        <Icon name="refresh" size={16} />
+                        重新下载
+                      </button>
+                    )}
+                    {(updateJob.phase === 'failed' || updateJob.phase === 'done') && app.openInBrowser && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm w-full mt-2"
+                        onClick={() => app.openInBrowser?.(update.url)}
+                      >
+                        改用浏览器下载
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-md w-full mt-3"
+                      onClick={startInstall}
+                    >
+                      <Icon name="download" size={16} />
+                      立即更新
+                    </button>
+                    {app.openInBrowser && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm w-full mt-2"
+                        onClick={() => app.openInBrowser?.(update.url)}
+                      >
+                        下载失败？改用浏览器下载
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )}

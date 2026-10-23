@@ -22,6 +22,10 @@ android/app/build/
 android/build/
 android/app/src/main/assets/www/
 android/capacitor-cordova-android-plugins/
+# 签名材料永远不进仓库：CI 从 secret 注入，本地放 android/keystore.properties
+android/keystore.properties
+android/*.jks
+android/*.keystore
 
 # 编辑器 / 系统
 .vscode/*

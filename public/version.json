@@ -1,7 +1,7 @@
 {
-  "versionCode": 7,
-  "versionName": "1.1.5",
-  "url": "./download/cimiao-1.1.5.apk",
-  "notes": "应用内更新更抗网络抖动：下载失败会自动重试三次并校验文件完整性；新增「改用浏览器下载」兜底入口。",
+  "versionCode": 8,
+  "versionName": "1.1.6",
+  "url": "./download/cimiao-1.1.6.apk",
+  "notes": "更新时能看见进度了：百分比、已下载 / 总大小、剩余时间与重试次数都会实时刷新，失败时进度停在原处可直接重下；新增开屏动画与切页过渡。",
   "publishedAt": "2026-10-23"
 }

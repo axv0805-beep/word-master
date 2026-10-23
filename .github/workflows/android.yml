@@ -1,0 +1,138 @@
+name: 打包安卓 APK 并发布更新
+
+# 手动触发：仓库 Actions 页 →「打包安卓 APK 并发布更新」→ Run workflow。
+# 一次跑完发版全流程：
+#   1. （可选）把 versionCode / versionName 各 +1
+#   2. 构建 web，拷进 android/app/src/main/assets/www
+#   3. Gradle 打 APK
+#   4. 发布 APK 到 public/download/ 并改写 public/version.json
+#   5. 提交推送，再调用 deploy-pages.yml 让站点与新版本一起上线
+#
+# 签名：配了 ANDROID_KEYSTORE_BASE64 等 secret 就用你自己的钥匙（覆盖安装才不会失败），
+# 没配时退回 runner 的临时 debug 签名——那种包只能全新安装，不能覆盖升级。
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 更新说明（显示在应用内「检查更新」里，留空则沿用上一版）
+        required: false
+        type: string
+      bump:
+        description: 自动把 versionCode 与 versionName 的末位各 +1
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write # 需要提交 APK 与 version.json
+  pages: write
+  id-token: write
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      versionName: ${{ steps.version.outputs.versionName }}
+      versionCode: ${{ steps.version.outputs.versionCode }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 版本号自增
+        if: ${{ inputs.bump }}
+        run: node scripts/bump-android-version.mjs
+
+      - name: 读取版本号
+        id: version
+        run: |
+          node -e "import('./scripts/android-release.mjs').then((m) => {
+            const v = m.readAndroidVersion()
+            console.log('versionName=' + v.versionName)
+            console.log('versionCode=' + v.versionCode)
+          })" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+      - name: 配置签名
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::没有配置 ANDROID_KEYSTORE_BASE64，本次使用 runner 的临时 debug 签名；这个 APK 无法覆盖安装已有版本，只能全新安装。"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/keystore.jks
+          {
+            echo "storeFile=keystore.jks"
+            echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+            echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}"
+            echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}"
+          } > android/keystore.properties
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: 构建 web 产物
+        run: pnpm run build
+
+      - name: 拷贝 web 产物到 APK 资源
+        run: |
+          rm -rf android/app/src/main/assets/www
+          mkdir -p android/app/src/main/assets/www
+          # download/ 是给网页端下载 APK 用的，别塞进 APK 自己
+          rsync -a --exclude=/download dist/ android/app/src/main/assets/www/
+
+      - name: 构建 APK
+        run: gradle -p android assembleDebug --no-daemon --console=plain
+
+      - name: 发布 APK 与更新清单
+        env:
+          UPDATE_NOTES: ${{ inputs.notes }}
+        run: node scripts/publish-android.mjs android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: 提交并推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/version.json public/download android/app/build.gradle
+          if git diff --cached --quiet; then
+            echo "版本内容没有变化，跳过提交"
+            exit 0
+          fi
+          git commit -m "release(android): v${{ steps.version.outputs.versionName }}（versionCode ${{ steps.version.outputs.versionCode }}）"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push
+
+  deploy:
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # 用 GITHUB_TOKEN 推的提交不会触发 deploy-pages.yml，这里显式调用它
+    uses: ./.github/workflows/deploy-pages.yml
+    with:
+      ref: main

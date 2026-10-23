@@ -73,7 +73,11 @@ npm run package:android
 2. 有新版就点「立即更新」，APK 下载到缓存目录后自动拉起系统安装器
 3. 覆盖安装即可，学习记录和设置都存在 WebView 的 localStorage 里，不会丢
 
-发版时只要改 `android/app/build.gradle` 的 `versionCode`（+1）和 `versionName`，再跑一次 `npm run package:android`——脚本会顺手更新 `public/version.json`、把 APK 发到 `public/download/`，推上去就生效。
+发版时只要改 `android/app/build.gradle` 的 `versionCode`（+1）和 `versionName`（或者直接跑 `npm run bump:android`），再跑一次 `npm run package:android`——脚本会顺手更新 `public/version.json`、把 APK 发到 `public/download/`，推上去就生效。
+
+没有 Android SDK 的机器走云端：Actions →「打包安卓 APK 并发布更新」→ Run workflow，一次跑完「版本号 +1 → 打 APK → 发布 → 提交 → 部署 Pages」。签名用仓库 secret `ANDROID_KEYSTORE_BASE64` 等注入（不配的话每包签名都不同，只能全新安装），细节见 [打包与安装](docs/打包与安装.md)。
+
+> 页面资源是打包进 APK 的（见 `WebViewAssetLoader`），所以纯 Web 层的改动（界面、动画、文案）也得重新打包 APK 才会到手机上；只推 gh-pages 只影响浏览器访问的网页版。
 
 > 首次点「立即更新」时系统会问是否允许「词芽」安装应用（Android 8+ 的未知来源限制），允许一次即可。
 
@@ -105,6 +109,8 @@ npm run package:android
 | `npm run electron:dev` | 桌面窗口里调试（Electron） |
 | `npm run package:desktop` | 打包 Windows 免安装桌面程序到 `release/` |
 | `npm run package:android` | 打包安卓 APK 到 `release/词芽-安卓.apk` |
+| `npm run publish:android` | 发布已有的 APK 并改写 `public/version.json`（`npm run publish:android <apk> --notes "…"`） |
+| `npm run bump:android` | 把 `android/app/build.gradle` 的 versionCode / versionName 各 +1 |
 | `npm run icons` | 从 `build/icon-source.jpg` 重新生成网页与安卓两套图标 |
 
 ---

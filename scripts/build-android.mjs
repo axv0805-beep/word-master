@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { publishApk, readAndroidVersion, writeVersionManifest } from './android-release.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const toolchain = 'D:\\A-WWW\\DS-harness\\android-toolchain'
@@ -52,30 +53,12 @@ function copyTree(from, to, skip = SKIP_DIRS) {
 
 const skipBuild = process.argv.includes('--no-build')
 
-// 版本号以 android/app/build.gradle 为唯一来源；发版前把它 +1
-const gradleFile = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8')
-const versionCode = Number((/versionCode\s+(\d+)/.exec(gradleFile) || [])[1] || 1)
-const versionName = ((/versionName\s+'([^']+)'/.exec(gradleFile) || [])[1] || '1.0.0')
-const apkName = `cimiao-${versionName}.apk`
-const publicDownload = path.join(root, 'public', 'download')
+// 版本号以 android/app/build.gradle 为唯一来源（解析逻辑与 CI 共用 scripts/android-release.mjs）；发版前把它 +1
+const { versionCode, versionName, apkName } = readAndroidVersion(root)
 
 console.log(`[1/6] 写 version.json（v${versionName} / code ${versionCode}）`)
-fs.mkdirSync(publicDownload, { recursive: true })
-fs.writeFileSync(
-  path.join(root, 'public', 'version.json'),
-  JSON.stringify(
-    {
-      versionCode,
-      versionName,
-      url: `./download/${apkName}`,
-      notes: process.env.UPDATE_NOTES || '细节优化与问题修复，更新后学习进度与设置都会保留。',
-      publishedAt: new Date().toISOString().slice(0, 10)
-    },
-    null,
-    2
-  ) + '\n',
-  'utf8'
-)
+fs.mkdirSync(path.join(root, 'public', 'download'), { recursive: true })
+writeVersionManifest({ versionCode, versionName, apkName, notes: process.env.UPDATE_NOTES }, root)
 
 if (!skipBuild) {
   console.log('[2/6] 构建 web 产物')
@@ -90,6 +73,12 @@ fs.rmSync(stage, { recursive: true, force: true })
 fs.mkdirSync(stage, { recursive: true })
 for (const file of ['settings.gradle', 'build.gradle', 'gradle.properties']) {
   fs.copyFileSync(path.join(root, 'android', file), path.join(stage, file))
+}
+// 配了自定义签名就把 keystore.properties 和钥匙一起带过去，否则打出来的包签名和 CI 对不上
+for (const file of fs.readdirSync(path.join(root, 'android'))) {
+  if (file === 'keystore.properties' || /\.(jks|keystore)$/i.test(file)) {
+    fs.copyFileSync(path.join(root, 'android', file), path.join(stage, file))
+  }
 }
 copyTree(sourceApp, stageApp)
 
@@ -120,14 +109,5 @@ fs.mkdirSync(path.dirname(apkOut), { recursive: true })
 fs.copyFileSync(apkSrc, apkOut)
 
 console.log('[6/6] 发布到 public/download（随站点提供，供应用内更新与手动下载）')
-for (const target of [
-  path.join(publicDownload, apkName),
-  path.join(publicDownload, 'latest.apk'),
-  path.join(root, 'dist', 'download', apkName),
-  path.join(root, 'dist', 'download', 'latest.apk')
-]) {
-  fs.mkdirSync(path.dirname(target), { recursive: true })
-  fs.copyFileSync(apkOut, target)
-}
-const size = (fs.statSync(apkOut).size / 1024 / 1024).toFixed(1)
-console.log(`完成：${apkOut}（${size} MB），站点地址 ./download/${apkName}`)
+const published = publishApk(apkOut, { root, extraDirs: [path.join(root, 'dist')] })
+console.log(`完成：${apkOut}（${published.size} MB），站点地址 ./download/${apkName}`)

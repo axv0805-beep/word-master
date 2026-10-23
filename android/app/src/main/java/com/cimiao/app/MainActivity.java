@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
 
@@ -46,6 +47,8 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private TextToSpeech tts;
+    /** 防止连点「立即更新」开出两个下载线程抢同一个文件 */
+    private final AtomicBoolean updateRunning = new AtomicBoolean(false);
     /** 系统栏实际占用的像素高度，读取后换算成 CSS px 推给网页 */
     private int statusInsetPx = 0;
     private int navInsetPx = 0;
@@ -243,29 +246,74 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void installUpdate(final String url) {
             if (url == null || url.isEmpty()) return;
-            runOnUiThread(() -> Toast.makeText(MainActivity.this, "开始下载更新…", Toast.LENGTH_SHORT).show());
+            if (!updateRunning.compareAndSet(false, true)) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "更新正在下载中…", Toast.LENGTH_SHORT).show());
+                return;
+            }
             new Thread(() -> {
                 File apk = new File(getCacheDir(), "update.apk");
                 String lastError = "网络连接失败";
-                // 手机网络访问 GitHub Pages 经常抖动，重试三次并校验大小，避免拿到半个文件
-                for (int attempt = 1; attempt <= 3; attempt++) {
-                    try {
-                        downloadApk(url, apk);
-                        final File ready = apk;
-                        runOnUiThread(() -> {
-                            Toast.makeText(MainActivity.this, "下载完成，正在打开安装…", Toast.LENGTH_SHORT).show();
-                            launchInstaller(ready);
-                        });
-                        return;
-                    } catch (Exception e) {
-                        lastError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                try {
+                    // 手机网络访问 GitHub Pages 经常抖动，重试三次并校验大小，避免拿到半个文件
+                    for (int attempt = 1; attempt <= 3; attempt++) {
+                        final int current = attempt;
+                        try {
+                            emitUpdateProgress("downloading", 0, -1, current, null);
+                            downloadApk(url, apk, (received, total) -> {
+                                // 节流：真实网络里 16KB 一次回调太密，合并到 ~6 次/秒足够顺滑
+                                long now = System.currentTimeMillis();
+                                boolean finished = total > 0 && received >= total;
+                                if (!finished && now - lastProgressAt < 160) return;
+                                lastProgressAt = now;
+                                emitUpdateProgress("downloading", received, total, current, null);
+                            });
+                            emitUpdateProgress("verifying", apk.length(), apk.length(), current, null);
+                            final File ready = apk;
+                            runOnUiThread(() -> {
+                                String blocked = launchInstaller(ready);
+                                if (blocked == null) {
+                                    emitUpdateProgress("done", ready.length(), ready.length(), current, null);
+                                    Toast.makeText(MainActivity.this, "下载完成，正在打开安装…", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    emitUpdateProgress("failed", ready.length(), ready.length(), current, blocked);
+                                }
+                            });
+                            return;
+                        } catch (Exception e) {
+                            lastError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                        }
                     }
+                    final String message = lastError;
+                    emitUpdateProgress("failed", 0, -1, 3, message);
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                            "更新下载失败：" + message + "。可以点「用浏览器下载」再试一次",
+                            Toast.LENGTH_LONG).show());
+                } finally {
+                    updateRunning.set(false);
                 }
-                final String message = lastError;
-                runOnUiThread(() -> Toast.makeText(MainActivity.this,
-                        "更新下载失败：" + message + "。可以点「用浏览器下载」再试一次",
-                        Toast.LENGTH_LONG).show());
             }).start();
+        }
+
+        /** 最近一次推送下载进度的时间，用来给网页节流 */
+        private long lastProgressAt = 0;
+
+        /**
+         * 把下载进度推给网页：window.__updateProgress(JSON 字符串)。
+         * 所有字段都是数字或固定文案，用 JSONObject.quote 包一层，避免消息里的引号把脚本拼坏。
+         */
+        private void emitUpdateProgress(String phase, long received, long total, int attempt, String message) {
+            org.json.JSONObject json = new org.json.JSONObject();
+            try {
+                json.put("phase", phase);
+                json.put("received", received);
+                json.put("total", total);
+                json.put("attempt", attempt);
+                if (message != null) json.put("message", message);
+            } catch (Exception e) {
+                return;
+            }
+            evaluate("window.__updateProgress && window.__updateProgress("
+                    + org.json.JSONObject.quote(json.toString()) + ")");
         }
 
         /** 用系统浏览器打开下载地址：浏览器有断点续传，网络差的时候更稳 */
@@ -284,8 +332,13 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** 下载进度回调：已下载字节数与总字节数（-1 = 服务器没给 Content-Length） */
+    private interface DownloadListener {
+        void onProgress(long received, long total);
+    }
+
     /** 下载并按 Content-Length 校验，半截文件直接判失败，交给上层重试 */
-    private void downloadApk(String url, File apk) throws Exception {
+    private void downloadApk(String url, File apk, DownloadListener listener) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setConnectTimeout(20000);
         conn.setReadTimeout(60000);
@@ -296,6 +349,7 @@ public class MainActivity extends Activity {
             if (code != HttpURLConnection.HTTP_OK) throw new IllegalStateException("HTTP " + code);
             long expected = conn.getContentLengthLong();
             long total = 0;
+            long lastNotified = 0;
             try (InputStream in = conn.getInputStream();
                  FileOutputStream out = new FileOutputStream(apk)) {
                 byte[] buffer = new byte[16384];
@@ -303,10 +357,17 @@ public class MainActivity extends Activity {
                 while ((read = in.read(buffer)) > 0) {
                     out.write(buffer, 0, read);
                     total += read;
+                    // 每 256 KB 回调一次，再交给上层按时间节流，避免频繁跨线程打 JS
+                    if (listener != null && total - lastNotified >= 262144) {
+                        lastNotified = total;
+                        listener.onProgress(total, expected);
+                    }
                 }
             }
             if (expected > 0 && total != expected) throw new IllegalStateException("下载不完整");
             if (total < 100_000 || !looksLikeApk(apk)) throw new IllegalStateException("文件不是安装包");
+            // 校验通过才报 100%，避免进度条先满格再报错
+            if (listener != null) listener.onProgress(total, expected > 0 ? expected : total);
         } finally {
             conn.disconnect();
         }
@@ -322,24 +383,34 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void launchInstaller(File apk) {
+    /**
+     * 拉起系统安装器（覆盖安装，学习数据保留）。
+     *
+     * @return null 表示安装器已经拉起来；否则返回要展示给用户的原因（如缺少「安装未知应用」权限）
+     */
+    private String launchInstaller(File apk) {
         // Android 8+ 需要用户允许「安装未知应用」，否则安装器不会弹出来
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 && !getPackageManager().canRequestPackageInstalls()) {
-            Toast.makeText(this, "请先允许词芽安装应用，然后点「检查更新」重试", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "请先允许词芽安装应用，然后点「重新下载」重试", Toast.LENGTH_LONG).show();
             try {
                 startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                         Uri.parse("package:" + getPackageName())));
             } catch (Exception ignored) {
                 // 部分机型没有这个设置页，忽略
             }
-            return;
+            return "需要先允许「词芽」安装应用";
         }
-        Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", apk);
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, "application/vnd.android.package-archive");
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
+        try {
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", apk);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            return null;
+        } catch (Exception e) {
+            return "没有可用的安装器";
+        }
     }
 
     @Override

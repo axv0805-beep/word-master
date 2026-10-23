@@ -11,8 +11,32 @@ android {
     minSdk 23
     targetSdk 34
     // 更新时把 versionCode +1（应用内「检查更新」用它和站点上的 version.json 比较）
-    versionCode 7
-    versionName '1.1.5'
+    versionCode 8
+    versionName '1.1.6'
+  }
+
+  // 可选的自定义签名（不要提交 keystore.properties 和 .jks，已在 .gitignore 里）：
+  //   storeFile=keystore.jks        # 相对 android/ 目录
+  //   storePassword=...
+  //   keyAlias=...
+  //   keyPassword=...
+  // 有它就用它替换默认的 debug 签名——本地和 CI 用同一把钥匙，覆盖安装才不会因为
+  // 签名不一致失败；没有它时退回 AGP 默认的 ~/.android/debug.keystore。
+  def keystorePropsFile = rootProject.file('keystore.properties')
+  def keystoreProps = new Properties()
+  if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+  }
+
+  signingConfigs {
+    debug {
+      if (keystoreProps.containsKey('storeFile')) {
+        storeFile rootProject.file(keystoreProps['storeFile'])
+        storePassword keystoreProps['storePassword']
+        keyAlias keystoreProps['keyAlias']
+        keyPassword keystoreProps['keyPassword']
+      }
+    }
   }
 
   buildTypes {

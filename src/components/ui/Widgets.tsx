@@ -164,19 +164,40 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
   )
 }
 
-export function ProgressBar({ value, className }: { value: number; className?: string }) {
+export interface ProgressBarProps {
+  /** 0..1；indeterminate 为 true 时忽略 */
+  value: number
+  className?: string
+  /** 拿不到总量时用来回滚动的条，避免看起来卡死在 0% */
+  indeterminate?: boolean
+  /** 无障碍名称：进度条是纯图形，读屏需要它才知道在表达什么 */
+  ariaLabel?: string
+  /** 失败态换成警示色，免得用户以为还在正常下载 */
+  tone?: 'brand' | 'danger'
+}
+
+export function ProgressBar({ value, className, indeterminate = false, ariaLabel, tone = 'brand' }: ProgressBarProps) {
   const clamped = Math.max(0, Math.min(1, value))
   return (
     <div
       className={`w-full overflow-hidden rounded-full ${className ?? ''}`}
+      role="progressbar"
+      aria-label={ariaLabel}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={indeterminate ? undefined : Math.round(clamped * 100)}
+      aria-busy={indeterminate || undefined}
       style={{ height: 8, background: 'var(--surface-2)' }}
     >
       <div
-        className="h-full rounded-full"
+        className={indeterminate ? 'h-full rounded-full progress-indeterminate' : 'h-full rounded-full'}
         style={{
-          width: `${clamped * 100}%`,
-          background: 'linear-gradient(90deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3))',
-          transition: 'width 360ms cubic-bezier(0.2,0.8,0.2,1)'
+          width: indeterminate ? '34%' : `${clamped * 100}%`,
+          background:
+            tone === 'danger'
+              ? 'var(--wrong)'
+              : 'linear-gradient(90deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3))',
+          transition: indeterminate ? 'none' : 'width 360ms cubic-bezier(0.2,0.8,0.2,1)'
         }}
       />
     </div>

@@ -19,6 +19,8 @@
     "electron:dev": "node scripts/electron-dev.mjs",
     "package:desktop": "node scripts/package-desktop.mjs",
     "package:android": "node scripts/build-android.mjs",
+    "publish:android": "node scripts/publish-android.mjs",
+    "bump:android": "node scripts/bump-android-version.mjs",
     "icons": "python scripts/make-icons.py && python scripts/make-android-icons.py"
   },
   "dependencies": {

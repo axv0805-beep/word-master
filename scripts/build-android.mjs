@@ -8,7 +8,8 @@
  * 依赖本地工具链（都在项目外的 ASCII 目录，已被 .gitignore 忽略）：
  *   - D:\A-WWW\DS-harness\android-toolchain\sdk        Android SDK（platform 34 / build-tools 34）
  *   - D:\A-WWW\DS-harness\android-toolchain\gradle-8.7 Gradle
- *   - JDK 17（JAVA_HOME 或 C:\Program Files\Java\jdk-17）
+ *   - D:\A-WWW\DS-harness\.android                     debug 签名钥匙（ANDROID_USER_HOME 固定在这里）
+ *   - JDK 17 或 21（JAVA_HOME，或下面 JAVA_CANDIDATES 里的默认位置）
  */
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -17,7 +18,11 @@ import { fileURLToPath } from 'node:url'
 import { publishApk, readAndroidVersion, writeVersionManifest } from './android-release.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const toolchain = 'D:\\A-WWW\\DS-harness\\android-toolchain'
+const harness = 'D:\\A-WWW\\DS-harness'
+const toolchain = path.join(harness, 'android-toolchain')
+// AndroidUserHome 固定下来，debug 签名钥匙每次都落在同一个 debug.keystore 里；
+// 钥匙变了覆盖安装就会失败，所以这个位置不能随环境变量漂移。
+const androidUserHome = path.join(harness, '.android')
 const sdkDir = path.join(toolchain, 'sdk')
 const gradleBin = path.join(toolchain, 'gradle-8.7', 'bin', 'gradle.bat')
 const stage = 'D:\\A-WWW\\DS-harness\\android-build'
@@ -52,6 +57,22 @@ function copyTree(from, to, skip = SKIP_DIRS) {
 }
 
 const skipBuild = process.argv.includes('--no-build')
+
+const JAVA_CANDIDATES = [
+  'C:\\Program Files\\Java\\jdk-17',
+  'C:\\Program Files\\Java\\jdk-21.0.10',
+  'C:\\Program Files\\Java\\jdk-21',
+  'C:\\Program Files\\Eclipse Adoptium\\jdk-17'
+]
+
+function resolveJavaHome() {
+  if (process.env.JAVA_HOME) return process.env.JAVA_HOME
+  const found = JAVA_CANDIDATES.find((dir) => fs.existsSync(path.join(dir, 'bin', 'java.exe')))
+  if (!found) {
+    throw new Error(`找不到 JDK，请先设置 JAVA_HOME。试过的位置：${JAVA_CANDIDATES.join('、')}`)
+  }
+  return found
+}
 
 // 版本号以 android/app/build.gradle 为唯一来源（解析逻辑与 CI 共用 scripts/android-release.mjs）；发版前把它 +1
 const { versionCode, versionName, apkName } = readAndroidVersion(root)
@@ -93,13 +114,15 @@ console.log('[5/6] Gradle assembleDebug')
 fs.writeFileSync(path.join(stage, 'local.properties'), `sdk.dir=${sdkDir.replace(/\\/g, '/')}\n`, 'utf8')
 if (!fs.existsSync(gradleBin)) throw new Error(`找不到 Gradle：${gradleBin}`)
 if (!fs.existsSync(sdkDir)) throw new Error(`找不到 Android SDK：${sdkDir}`)
+fs.mkdirSync(androidUserHome, { recursive: true })
 run(gradleBin, ['assembleDebug', '--no-daemon', '--console=plain'], {
   cwd: stage,
   env: {
     ...process.env,
-    JAVA_HOME: process.env.JAVA_HOME || 'C:\\Program Files\\Java\\jdk-17',
+    JAVA_HOME: resolveJavaHome(),
     ANDROID_HOME: sdkDir,
-    ANDROID_SDK_ROOT: sdkDir
+    ANDROID_SDK_ROOT: sdkDir,
+    ANDROID_USER_HOME: androidUserHome
   }
 })
 

@@ -63,7 +63,9 @@ npm run package:android
 
 产物：`release/词芽-安卓.apk`。传到手机点开安装即可（系统会提示「未知来源」，选择允许）。
 
-> 已经部署好的站点也带了安装包：[下载最新版 APK](https://axv0805-beep.github.io/word-master/download/latest.apk)（1.3 MB），手机上打开这个链接直接下载。
+> 本机工具链已经装好：Android SDK 与 Gradle 8.7 在 `D:\A-WWW\DS-harness\android-toolchain`，签名钥匙在 `D:\A-WWW\DS-harness\.android`（别删，删了覆盖安装就会失败）。换机器时按 [打包与安装](docs/打包与安装.md) 里的命令重装。
+
+> 已经部署好的站点也带了安装包：[下载最新版 APK](https://axv0805-beep.github.io/word-master/download/latest.apk)（约 2.9 MB），手机上打开这个链接直接下载。
 
 #### 应用内更新
 

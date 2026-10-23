@@ -11,8 +11,8 @@ android {
     minSdk 23
     targetSdk 34
     // 更新时把 versionCode +1（应用内「检查更新」用它和站点上的 version.json 比较）
-    versionCode 6
-    versionName '1.1.4'
+    versionCode 7
+    versionName '1.1.5'
   }
 
   buildTypes {

@@ -4,7 +4,7 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.4'
+export const APP_VERSION = '1.1.5'
 
 /**
  * 应用内更新检查的地址。
@@ -31,6 +31,8 @@ export interface AndroidAppBridge {
   /** 系统栏高度（CSS px），页面加载瞬间先用它占位 */
   statusBarHeight?(): number
   navigationBarHeight?(): number
+  /** 用系统浏览器打开链接：应用内下载失败时的兜底（浏览器支持断点续传） */
+  openInBrowser?(url: string): void
 }
 
 /** 原生检查更新的三种回调（安卓壳通过 evaluateJavascript 调用） */

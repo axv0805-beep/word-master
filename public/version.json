@@ -1,7 +1,7 @@
 {
-  "versionCode": 6,
-  "versionName": "1.1.4",
-  "url": "./download/cimiao-1.1.4.apk",
-  "notes": "状态栏改为透明：页面配色一直铺到屏幕最上沿，不再有白色横条；状态栏图标会跟着主题明暗自动切换。",
+  "versionCode": 7,
+  "versionName": "1.1.5",
+  "url": "./download/cimiao-1.1.5.apk",
+  "notes": "应用内更新更抗网络抖动：下载失败会自动重试三次并校验文件完整性；新增「改用浏览器下载」兜底入口。",
   "publishedAt": "2026-10-23"
 }

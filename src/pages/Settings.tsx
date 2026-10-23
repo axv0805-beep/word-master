@@ -609,6 +609,15 @@ export function SettingsPage() {
                   <Icon name="download" size={16} />
                   立即更新
                 </button>
+                {app.openInBrowser && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm w-full mt-2"
+                    onClick={() => app.openInBrowser?.(update.url)}
+                  >
+                    下载失败？改用浏览器下载
+                  </button>
+                )}
               </div>
             )}
           </div>

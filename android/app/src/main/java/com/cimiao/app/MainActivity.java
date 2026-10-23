@@ -245,27 +245,80 @@ public class MainActivity extends Activity {
             if (url == null || url.isEmpty()) return;
             runOnUiThread(() -> Toast.makeText(MainActivity.this, "开始下载更新…", Toast.LENGTH_SHORT).show());
             new Thread(() -> {
-                try {
-                    File apk = new File(getCacheDir(), "update.apk");
-                    HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                    conn.setConnectTimeout(15000);
-                    conn.setReadTimeout(30000);
-                    conn.connect();
-                    if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                        throw new IllegalStateException("HTTP " + conn.getResponseCode());
+                File apk = new File(getCacheDir(), "update.apk");
+                String lastError = "网络连接失败";
+                // 手机网络访问 GitHub Pages 经常抖动，重试三次并校验大小，避免拿到半个文件
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        downloadApk(url, apk);
+                        final File ready = apk;
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "下载完成，正在打开安装…", Toast.LENGTH_SHORT).show();
+                            launchInstaller(ready);
+                        });
+                        return;
+                    } catch (Exception e) {
+                        lastError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
                     }
-                    try (InputStream in = conn.getInputStream();
-                         FileOutputStream out = new FileOutputStream(apk)) {
-                        byte[] buffer = new byte[8192];
-                        int read;
-                        while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
-                    }
-                    runOnUiThread(() -> launchInstaller(apk));
-                } catch (Exception e) {
-                    runOnUiThread(() -> Toast.makeText(
-                            MainActivity.this, "更新下载失败：" + e.getMessage(), Toast.LENGTH_LONG).show());
                 }
+                final String message = lastError;
+                runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                        "更新下载失败：" + message + "。可以点「用浏览器下载」再试一次",
+                        Toast.LENGTH_LONG).show());
             }).start();
+        }
+
+        /** 用系统浏览器打开下载地址：浏览器有断点续传，网络差的时候更稳 */
+        @JavascriptInterface
+        public void openInBrowser(final String url) {
+            if (url == null || url.isEmpty()) return;
+            runOnUiThread(() -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "没有可用的浏览器", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
+    /** 下载并按 Content-Length 校验，半截文件直接判失败，交给上层重试 */
+    private void downloadApk(String url, File apk) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setConnectTimeout(20000);
+        conn.setReadTimeout(60000);
+        conn.setInstanceFollowRedirects(true);
+        conn.setRequestProperty("Accept-Encoding", "identity");
+        try {
+            int code = conn.getResponseCode();
+            if (code != HttpURLConnection.HTTP_OK) throw new IllegalStateException("HTTP " + code);
+            long expected = conn.getContentLengthLong();
+            long total = 0;
+            try (InputStream in = conn.getInputStream();
+                 FileOutputStream out = new FileOutputStream(apk)) {
+                byte[] buffer = new byte[16384];
+                int read;
+                while ((read = in.read(buffer)) > 0) {
+                    out.write(buffer, 0, read);
+                    total += read;
+                }
+            }
+            if (expected > 0 && total != expected) throw new IllegalStateException("下载不完整");
+            if (total < 100_000 || !looksLikeApk(apk)) throw new IllegalStateException("文件不是安装包");
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    /** APK 本质是 zip，开头必须是 PK；防止把错误页当成安装包 */
+    private boolean looksLikeApk(File file) {
+        try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+            byte[] head = new byte[2];
+            return in.read(head) == 2 && head[0] == 'P' && head[1] == 'K';
+        } catch (Exception e) {
+            return false;
         }
     }
 

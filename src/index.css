@@ -11,8 +11,45 @@
    每一档都已按 4.5:1 校过），--brand-3 只用于装饰渐变末端。
    ============================================================ */
 
-/* 晨雾：浅色底 + 靛蓝，默认主题 */
+/* 青芽：薄荷底 + 翡翠与嫩芽绿，默认主题 */
 :root {
+  color-scheme: light;
+  --bg: #f1faf3;
+  --glow-1: rgba(16, 185, 129, 0.3);
+  --glow-2: rgba(163, 230, 53, 0.24);
+  --glow-3: rgba(45, 212, 191, 0.16);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: #e5f7ea;
+  --surface-3: rgba(5, 150, 105, 0.1);
+  --border: rgba(9, 48, 29, 0.09);
+  --border-strong: rgba(9, 48, 29, 0.2);
+  --sheen: rgba(255, 255, 255, 0.95);
+  /* 玻璃/品牌面片上的白色高光与压暗层：不随主题变化，独立成 token 便于统一调 */
+  --sheen-line: rgba(255, 255, 255, 0.16);
+  --sheen-soft: rgba(255, 255, 255, 0.18);
+  --sheen-mid: rgba(255, 255, 255, 0.26);
+  --sheen-strong: rgba(255, 255, 255, 0.35);
+  --scrim: rgba(0, 0, 0, 0.22);
+  --scrim-deep: rgba(0, 0, 0, 0.55);
+  --text: #0a2718;
+  --text-muted: #47685a;
+  --text-faint: #6d8a7c;
+  --shadow: 0 22px 48px -30px rgba(6, 78, 45, 0.42);
+  --tabbar: rgba(255, 255, 255, 0.8);
+  --brand-1: #047857;
+  --brand-2: #15803d;
+  --brand-3: #4d7c0f;
+  --brand-soft: rgba(5, 150, 105, 0.1);
+  --brand-glow: rgba(5, 150, 105, 0.42);
+  --on-brand: #ffffff;
+  --ring: rgba(5, 150, 105, 0.26);
+  --correct: #047857;
+  --wrong: #be123c;
+  --warning: #b45309;
+}
+
+/* 晨雾：浅色底 + 靛蓝 */
+[data-theme='light'] {
   color-scheme: light;
   --bg: #f3f4fc;
   --glow-1: rgba(99, 102, 241, 0.3);
@@ -24,13 +61,6 @@
   --border: rgba(23, 27, 62, 0.08);
   --border-strong: rgba(23, 27, 62, 0.18);
   --sheen: rgba(255, 255, 255, 0.9);
-  /* 玻璃/品牌面片上的白色高光与压暗层：不随主题变化，独立成 token 便于统一调 */
-  --sheen-line: rgba(255, 255, 255, 0.16);
-  --sheen-soft: rgba(255, 255, 255, 0.18);
-  --sheen-mid: rgba(255, 255, 255, 0.26);
-  --sheen-strong: rgba(255, 255, 255, 0.35);
-  --scrim: rgba(0, 0, 0, 0.22);
-  --scrim-deep: rgba(0, 0, 0, 0.55);
   --text: #12162b;
   --text-muted: #565d78;
   --text-faint: #7c839c;

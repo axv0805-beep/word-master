@@ -63,7 +63,7 @@ export type MistakeReplayMode =
   | 'srs'
 
 /** 主题 ID：3 套深色 + 3 套浅色，具体色值见 src/index.css */
-export type ThemeId = 'dark' | 'light' | 'aurora' | 'sakura' | 'sunset' | 'ocean'
+export type ThemeId = 'forest' | 'dark' | 'light' | 'aurora' | 'sakura' | 'sunset' | 'ocean'
 
 export interface Settings {
   bookId: string

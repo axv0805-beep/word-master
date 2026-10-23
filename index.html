@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" class="dark" data-theme="dark">
+<html lang="zh-CN" data-theme="forest">
   <head>
     <meta charset="UTF-8" />
     <script>
@@ -7,12 +7,12 @@
       ;(function () {
         try {
           var raw = localStorage.getItem('word-master-store')
-          var theme = raw ? JSON.parse(raw).state.settings.theme : 'dark'
-          var light = { light: 1, sakura: 1, ocean: 1 }
-          document.documentElement.setAttribute('data-theme', theme || 'dark')
+          var theme = raw ? JSON.parse(raw).state.settings.theme : 'forest'
+          var light = { forest: 1, light: 1, sakura: 1, ocean: 1 }
+          document.documentElement.setAttribute('data-theme', theme || 'forest')
           document.documentElement.classList.toggle('dark', !light[theme])
         } catch (error) {
-          /* 存档损坏时保持默认深色 */
+          /* 存档损坏时保持默认主题 */
         }
       })()
     </script>
@@ -20,7 +20,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#070B18" />
+    <meta name="theme-color" content="#F1FAF3" />
     <meta name="description" content="单词王 · 手机优先的背单词应用：字母顺序背词、随机抽词、错题专项练习、成长曲线" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

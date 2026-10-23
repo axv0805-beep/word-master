@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   accent: 'us',
   onlineAudio: true,
   dailyGoal: 30,
-  theme: 'dark',
+  theme: 'forest',
   showPhoneticInSpelling: true,
   onboarded: false
 }
@@ -65,11 +65,6 @@ export interface AppState {
 }
 
 const EMPTY_STUDY: StudyState = { alphaCursor: {}, lastLetter: {} }
-
-function prefersDark(): boolean {
-  if (typeof window === 'undefined' || !window.matchMedia) return true
-  return !window.matchMedia('(prefers-color-scheme: light)').matches
-}
 
 /** 内存兜底存储：无 localStorage（无痕模式、测试环境）时保证功能可用且不刷警告 */
 function createMemoryStorage(): Storage {
@@ -159,7 +154,7 @@ export function mergePersistedState(persisted: unknown, current: AppState): AppS
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      settings: { ...DEFAULT_SETTINGS, theme: prefersDark() ? 'dark' : 'light' },
+      settings: { ...DEFAULT_SETTINGS, theme: 'forest' },
       progress: {},
       mistakes: {},
       daily: {},

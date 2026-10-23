@@ -16,11 +16,19 @@ export interface ThemeDef {
 }
 
 /**
- * 6 套主题：3 深 3 浅。
+ * 7 套主题：4 浅 3 深，默认「青芽」。
  * 所有颜色以 CSS 变量落在 src/index.css 的 [data-theme] 块里，
  * 这里只保留切换主题必需的信息，避免两处维护同一份色值。
  */
 export const THEMES: ThemeDef[] = [
+  {
+    id: 'forest',
+    name: '青芽',
+    tag: '浅色',
+    mode: 'light',
+    themeColor: '#F1FAF3',
+    preview: { bg: '#F1FAF3', c1: '#047857', c2: '#84CC16' }
+  },
   {
     id: 'dark',
     name: '极夜',

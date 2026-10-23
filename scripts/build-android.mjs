@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { publishApk, readAndroidVersion, writeVersionManifest } from './android-release.mjs'
+import { publishApk, readAndroidVersion, syncAppVersion, writeVersionManifest } from './android-release.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const harness = 'D:\\A-WWW\\DS-harness'
@@ -80,6 +80,7 @@ const { versionCode, versionName, apkName } = readAndroidVersion(root)
 console.log(`[1/6] 写 version.json（v${versionName} / code ${versionCode}）`)
 fs.mkdirSync(path.join(root, 'public', 'download'), { recursive: true })
 writeVersionManifest({ versionCode, versionName, apkName, notes: process.env.UPDATE_NOTES }, root)
+syncAppVersion(versionName, root)
 
 if (!skipBuild) {
   console.log('[2/6] 构建 web 产物')

@@ -9,7 +9,14 @@
  * 版本号只有一处来源：android/app/build.gradle，先改那里再发。
  */
 import path from 'node:path'
-import { ROOT, DEFAULT_NOTES, readAndroidVersion, publishApk, writeVersionManifest } from './android-release.mjs'
+import {
+  ROOT,
+  DEFAULT_NOTES,
+  readAndroidVersion,
+  publishApk,
+  syncAppVersion,
+  writeVersionManifest
+} from './android-release.mjs'
 
 const args = process.argv.slice(2)
 const apkArg = args.find((arg) => !arg.startsWith('--'))
@@ -33,8 +40,9 @@ if (dryRun) {
   process.exit(0)
 }
 
+syncAppVersion(versionName, ROOT)
 const published = publishApk(apkPath, { root: ROOT })
-const { manifest } = writeVersionManifest({ versionCode, versionName, apkName, notes })
+const manifest = writeVersionManifest({ versionCode, versionName, apkName, notes })
 
 console.log(`\n完成：${published.size} MB，${published.targets.length} 个文件已更新`)
 console.log(`version.json 说明：${manifest.notes || DEFAULT_NOTES}`)

@@ -75,6 +75,8 @@ npm run package:android
 2. 有新版就点「立即更新」，APK 下载到缓存目录后自动拉起系统安装器
 3. 覆盖安装即可，学习记录和设置都存在 WebView 的 localStorage 里，不会丢
 
+也不用每次都自己想起来去点：进应用 1.2 秒后有新版本会从底部升起提醒（最多每 6 小时自动查一次，可以「稍后再说」静默 6 小时或「跳过这个版本」永久静音），下载中可以收起，进度在设置页继续。
+
 发版时只要改 `android/app/build.gradle` 的 `versionCode`（+1）和 `versionName`（或者直接跑 `npm run bump:android`），再跑一次 `npm run package:android`——脚本会顺手更新 `public/version.json`、把 APK 发到 `public/download/`，推上去就生效。
 
 没有 Android SDK 的机器走云端：Actions →「打包安卓 APK 并发布更新」→ Run workflow，一次跑完「版本号 +1 → 打 APK → 发布 → 提交 → 部署 Pages」。签名用仓库 secret `ANDROID_KEYSTORE_BASE64` 等注入（不配的话每包签名都不同，只能全新安装），细节见 [打包与安装](docs/打包与安装.md)。

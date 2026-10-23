@@ -25,6 +25,20 @@ export function readAndroidVersion(root = ROOT) {
   return { versionCode, versionName, apkName: `cimiao-${versionName}.apk` }
 }
 
+/**
+ * 把 versionName 同步进 src/core/native.ts 的 APP_VERSION。
+ * 界面上的「当前版本」和应用内更新提示都读它，忘了同步就会出现「1.1.7 装着、界面显示 1.1.6」。
+ * 页面资源是打进 APK 的，所以必须在 npm run build 之前改。
+ */
+export function syncAppVersion(versionName, root = ROOT) {
+  const file = path.join(root, 'src', 'core', 'native.ts')
+  const source = fs.readFileSync(file, 'utf8')
+  const next = source.replace(/(export const APP_VERSION = ')[^']*(')/, `$1${versionName}$2`)
+  if (next === source) return false
+  fs.writeFileSync(file, next, 'utf8')
+  return true
+}
+
 function readManifest(root = ROOT) {
   try {
     return JSON.parse(fs.readFileSync(path.join(root, 'public', 'version.json'), 'utf8'))

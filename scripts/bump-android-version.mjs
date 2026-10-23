@@ -4,7 +4,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { ROOT, readAndroidVersion } from './android-release.mjs'
+import { ROOT, readAndroidVersion, syncAppVersion } from './android-release.mjs'
 
 const file = path.join(ROOT, 'android', 'app', 'build.gradle')
 const { versionCode, versionName } = readAndroidVersion(ROOT)
@@ -18,6 +18,8 @@ const gradle = fs
   .replace(/(versionCode\s+)\d+/, `$1${versionCode + 1}`)
   .replace(/(versionName\s+')([^']+)(')/, `$1${nextName}$3`)
 fs.writeFileSync(file, gradle, 'utf8')
+
+syncAppVersion(nextName, ROOT)
 
 console.log(`versionCode ${versionCode} → ${versionCode + 1}`)
 console.log(`versionName ${versionName} → ${nextName}`)

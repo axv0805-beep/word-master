@@ -1,7 +1,7 @@
 {
-  "versionCode": 4,
-  "versionName": "1.1.2",
-  "url": "./download/cimiao-1.1.2.apk",
-  "notes": "图标留白重新调整：图形缩小到画布的 52%，四周留出呼吸感，桌面看起来更轻盈。",
+  "versionCode": 5,
+  "versionName": "1.1.3",
+  "url": "./download/cimiao-1.1.3.apk",
+  "notes": "新增「小学核心词」词书：人教版小学英语 3–6 年级 8 册合并去重，共 819 个词条。",
   "publishedAt": "2026-10-23"
 }

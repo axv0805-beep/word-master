@@ -3,7 +3,7 @@
 一个**手机优先、可离线**的背单词 Web App（PWA），完整实现需求清单里的模块与功能，界面参考万词王、百词斩等产品的交互习惯。
 
 - **技术栈**：React 18 + TypeScript + Vite 5 + Tailwind CSS 3 + Zustand
-- **词书**：内置四级核心（2607 词）、六级（2345 词）、高考 3500（3883 词）、中考核心词（2135 词），共 **10,970 个词条**，全部打包在本地，离线可用
+- **词书**：内置小学核心词（819 词，人教版 3–6 年级 8 册合并）、四级核心（2607 词）、六级（2345 词）、高考 3500（3883 词）、中考核心词（2135 词），共 **11,789 个词条**，全部打包在本地，离线可用
 - **无需后端**：所有学习数据存在浏览器本地（localStorage），可导出/导入备份
 
 ---
@@ -97,6 +97,7 @@ npm run package:android
 | `npm run preview` | 预览构建产物 |
 | `npm test` | 运行全部单元测试与界面冒烟测试（179 个用例） |
 | `npm run fetch-dicts` | 重新下载并规范化内置词书（需要联网） |
+| `node scripts/fetch-primary.mjs` | 单独重建「小学核心词」（合并人教版 PEP 8 册） |
 | `npm run verify-dicts` | 校验词书数据完整性（词条数、空释义、重名、首字母分布） |
 | `npm run verify` | 一次跑完：词书校验 → 类型检查 → 测试 → 构建 |
 | `npm run verify:ui` | 用真实 Chrome 打开构建产物，校验点击命中/滚动/导航并输出截图到 `artifacts/` |
@@ -184,7 +185,7 @@ npm run package:android
 ```
 单词/
 ├─ public/
-│  ├─ dicts/                  内置词书（4 本 JSON + manifest.json）
+│  ├─ dicts/                  内置词书（5 本 JSON + manifest.json）
 │  └─ icons/                  PWA 图标
 ├─ scripts/
 │  ├─ fetch-dicts.mjs         下载 + 清洗 + 规范化词书

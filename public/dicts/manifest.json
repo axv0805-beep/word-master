@@ -165,6 +165,56 @@
       "phoneticRate": 1,
       "source": "https://github.com/RealKai42/qwerty-learner/blob/master/public/dicts/ZhongKaoHeXin.json",
       "fetchedFrom": "https://ghproxy.net/https://raw.githubusercontent.com/RealKai42/qwerty-learner/master/public/dicts/ZhongKaoHeXin.json"
+    },
+    {
+      "id": "primary",
+      "name": "小学核心词",
+      "description": "人教版小学英语 3–6 年级（8 册合并去重）",
+      "file": "primary.json",
+      "count": 819,
+      "rawCount": 849,
+      "expanded": 0,
+      "dropped": [],
+      "letters": {
+        "A": 31,
+        "B": 58,
+        "C": 59,
+        "D": 36,
+        "E": 32,
+        "F": 54,
+        "G": 36,
+        "H": 43,
+        "I": 12,
+        "J": 11,
+        "K": 13,
+        "L": 33,
+        "M": 35,
+        "N": 23,
+        "O": 20,
+        "P": 55,
+        "Q": 2,
+        "R": 19,
+        "S": 108,
+        "T": 70,
+        "U": 9,
+        "V": 4,
+        "W": 47,
+        "Y": 8,
+        "Z": 1
+      },
+      "phoneticRate": 0.8608,
+      "source": "https://github.com/RealKai42/qwerty-learner/tree/master/public/dicts",
+      "fetchedFrom": "https://ghproxy.net/https://raw.githubusercontent.com/RealKai42/qwerty-learner/master/public/dicts/PEPXiaoXue3_1_T.json",
+      "volumes": [
+        "三年级上 64",
+        "三年级下 72",
+        "四年级上 84",
+        "四年级下 104",
+        "五年级上 131",
+        "五年级下 156",
+        "六年级上 130",
+        "六年级下 108"
+      ]
     }
   ]
 }

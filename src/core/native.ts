@@ -67,33 +67,52 @@ const UPDATE_PHASES: ReadonlyArray<UpdateProgress['phase']> = [
   'done'
 ]
 
+/** 进度订阅者集合：设置页和启动弹窗会同时挂着，事件必须广播给每一家 */
+const progressSubscribers = new Set<(progress: UpdateProgress) => void>()
+let progressHandler: ((raw: string) => void) | null = null
+
 /**
  * 订阅原生下载进度，返回退订函数。
  * 网页端（没有安卓桥）调用它是安全的空操作，进度条自然不出现。
+ * 多个订阅者共存时 window.__updateProgress 只装一个分发器，事件广播给全部。
  */
 export function onUpdateProgress(callback: (progress: UpdateProgress) => void): () => void {
   if (typeof window === 'undefined') return () => {}
   const w = window as unknown as { __updateProgress?: (raw: string) => void }
-  const handler = (raw: string) => {
-    try {
-      const parsed = JSON.parse(raw) as Partial<UpdateProgress> | null
-      if (!parsed || typeof parsed.phase !== 'string') return
-      const phase = parsed.phase as UpdateProgress['phase']
-      if (!UPDATE_PHASES.includes(phase)) return
-      callback({
-        phase,
-        received: typeof parsed.received === 'number' ? parsed.received : undefined,
-        total: typeof parsed.total === 'number' ? parsed.total : undefined,
-        attempt: typeof parsed.attempt === 'number' ? parsed.attempt : undefined,
-        message: typeof parsed.message === 'string' ? parsed.message : undefined
-      })
-    } catch {
-      // 单条坏消息不该打断正在进行的下载：丢掉这一帧进度即可
+  progressSubscribers.add(callback)
+  if (!progressHandler) {
+    progressHandler = (raw: string) => {
+      try {
+        const parsed = JSON.parse(raw) as Partial<UpdateProgress> | null
+        if (!parsed || typeof parsed.phase !== 'string') return
+        const phase = parsed.phase as UpdateProgress['phase']
+        if (!UPDATE_PHASES.includes(phase)) return
+        const progress: UpdateProgress = {
+          phase,
+          received: typeof parsed.received === 'number' ? parsed.received : undefined,
+          total: typeof parsed.total === 'number' ? parsed.total : undefined,
+          attempt: typeof parsed.attempt === 'number' ? parsed.attempt : undefined,
+          message: typeof parsed.message === 'string' ? parsed.message : undefined
+        }
+        for (const subscriber of Array.from(progressSubscribers)) {
+          try {
+            subscriber(progress)
+          } catch {
+            // 单个订阅者出错不该让别人收不到进度
+          }
+        }
+      } catch {
+        // 单条坏消息不该打断正在进行的下载：丢掉这一帧进度即可
+      }
     }
+    w.__updateProgress = progressHandler
   }
-  w.__updateProgress = handler
   return () => {
-    if (w.__updateProgress === handler) delete w.__updateProgress
+    progressSubscribers.delete(callback)
+    if (progressSubscribers.size === 0 && progressHandler) {
+      if (w.__updateProgress === progressHandler) delete w.__updateProgress
+      progressHandler = null
+    }
   }
 }
 

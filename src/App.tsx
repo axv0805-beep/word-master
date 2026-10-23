@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { TabBar } from './components/TabBar'
 import { ToastHost } from './components/ui/Toast'
+import { UpdatePrompt } from './components/UpdatePrompt'
 import { HomePage } from './pages/Home'
 import { BooksPage } from './pages/Books'
 import { MistakesPage } from './pages/Mistakes'
@@ -81,6 +82,8 @@ export default function App() {
         </div>
         {isStudy ? null : <TabBar />}
       </div>
+      {/* 冷启动时静默查一次更新，有新版本就弹窗（只有安卓壳里有原生桥） */}
+      <UpdatePrompt />
       <ToastHost />
     </>
   )

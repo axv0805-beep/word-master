@@ -4,7 +4,7 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.11'
+export const APP_VERSION = '1.1.12'
 
 /**
  * 应用内更新检查的地址。

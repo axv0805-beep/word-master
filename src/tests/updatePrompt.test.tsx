@@ -5,6 +5,8 @@ import { UpdatePrompt } from '../components/UpdatePrompt'
 import { APP_VERSION } from '../core/native'
 import type { UpdateProgress } from '../core/native'
 import { readUpdatePrefs, resetUpdatePrefs, writeUpdatePrefs } from '../core/updatePrefs'
+import { resetUpdateCheckCache } from '../hooks/useUpdateCheck'
+import { useUpdateUi } from '../store/updateUi'
 
 type NativeWindow = {
   __updateProgress?: (raw: string) => void
@@ -64,8 +66,14 @@ function pushProgress(payload: UpdateProgress) {
   act(() => handler(JSON.stringify(payload)))
 }
 
-/** 冷启动的检查是 setTimeout 1.2s 之后才发起的，这里把定时器推过去 */
+/**
+ * 清单检查在挂载时就发起（结果走微任务回来），弹窗的 1.2s 延迟是拿到结果之后才排的：
+ * 先让微任务跑完，再把定时器推过去。
+ */
 async function runLaunchCheck() {
+  await act(async () => {
+    await Promise.resolve()
+  })
   await act(async () => {
     vi.advanceTimersByTime(1300)
   })
@@ -80,6 +88,9 @@ async function mountPrompt() {
 beforeEach(() => {
   vi.useFakeTimers()
   resetUpdatePrefs()
+  // 一次打开只查一次清单是模块级缓存，用例之间要清掉；弹窗显隐状态同理
+  resetUpdateCheckCache()
+  useUpdateUi.setState({ info: null, open: false })
 })
 
 afterEach(() => {
@@ -162,6 +173,7 @@ describe('启动时的新版本提醒', () => {
 
     // 清掉检查间隔与静默期，只留下「跳过」记录：确实是被静音挡掉的
     writeUpdatePrefs({ lastCheckAt: 0, snoozeUntil: 0 })
+    resetUpdateCheckCache()
     await mountPrompt()
     expect(checkUpdate).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('dialog')).toBeNull()

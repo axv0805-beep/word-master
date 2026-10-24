@@ -7,6 +7,9 @@ import { useAppStore } from '../store/appStore'
 import { useHomeSummary } from '../hooks/useHomeSummary'
 import { useStartRound } from '../hooks/useStartRound'
 import { useGreeting } from '../hooks/useGreeting'
+import { useUpdateCheck } from '../hooks/useUpdateCheck'
+import { useUpdateUi } from '../store/updateUi'
+import { isVersionMuted } from '../core/updatePrefs'
 import { buildSeries, totalMinutes, totalQuestions } from '../core/stats'
 import type { HomeView } from '../core/types'
 
@@ -95,6 +98,9 @@ function SproutHome() {
   const { startRound, starting } = useStartRound()
   const [startingRound, setStartingRound] = useState(false)
   const [reviewHintOpen, setReviewHintOpen] = useState(false)
+  const { info: updateInfo, newer: updateNewer } = useUpdateCheck()
+  const openUpdateSheet = useUpdateUi((state) => state.openSheet)
+  const updateReady = updateNewer && !!updateInfo && !isVersionMuted(updateInfo.versionCode)
 
   async function handleStart() {
     setStartingRound(true)
@@ -188,6 +194,18 @@ function SproutHome() {
         </div>
       )}
 
+      {updateReady && updateInfo && (
+        <button type="button" className="sprout-update" onClick={() => openUpdateSheet(updateInfo)}>
+          <span className="sprout-update__dot" aria-hidden="true" />
+          <span className="sprout-update__text">
+            有新版本 <strong>v{updateInfo.versionName}</strong>
+          </span>
+          <span className="sprout-update__cta">
+            去更新
+            <Icon name="chevronRight" size={12} strokeWidth={2.4} />
+          </span>
+        </button>
+      )}
       <button type="button" className="btn sprout-start" onClick={() => void handleStart()} disabled={starting}>
         <span className="sprout-start__play">
           <Icon name="play" size={14} strokeWidth={2.6} />

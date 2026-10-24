@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Icon } from './ui/Icons'
 import { useToast } from './ui/Toast'
+import { useUpdateCheck } from '../hooks/useUpdateCheck'
+import { useUpdateUi } from '../store/updateUi'
 import { UpdateProgressView, useUpdateDownload } from './ui/UpdateProgress'
-import type { UpdateInfo } from './ui/UpdateProgress'
-import { APP_VERSION, UPDATE_MANIFEST_URL, nativeApp, requestUpdateCheck } from '../core/native'
+import { APP_VERSION, nativeApp } from '../core/native'
 import {
   isVersionMuted,
   markChecked,
@@ -23,48 +24,34 @@ export function UpdatePrompt() {
   const app = nativeApp()
   const showToast = useToast((state) => state.show)
   const { job, start } = useUpdateDownload()
-  const [info, setInfo] = useState<UpdateInfo | null>(null)
-  const [open, setOpen] = useState(false)
+  const info = useUpdateUi((state) => state.info)
+  const open = useUpdateUi((state) => state.open)
+  const openSheet = useUpdateUi((state) => state.openSheet)
+  const closeSheet = useUpdateUi((state) => state.closeSheet)
+  const { info: found } = useUpdateCheck()
 
+  // 发现新版本后，等开屏和首屏动画走完再弹，避免一进来就糊在脸上
   useEffect(() => {
-    if (!app) return
+    if (!app || !found) return
+    if (isVersionMuted(found.versionCode)) return
     if (!shouldCheckOnLaunch()) return
-    let cancelled = false
     const timer = window.setTimeout(() => {
       markChecked()
-      requestUpdateCheck({
-        onAvailable: (raw) => {
-          if (cancelled) return
-          try {
-            const parsed = JSON.parse(raw) as UpdateInfo
-            if (!parsed || typeof parsed.url !== 'string') return
-            if (isVersionMuted(parsed.versionCode)) return
-            setInfo({ ...parsed, url: new URL(parsed.url, UPDATE_MANIFEST_URL).href })
-            setOpen(true)
-          } catch {
-            // 清单坏了就静默放过：启动阶段不值得为一次检查失败打扰用户
-          }
-        },
-        onNone: () => undefined,
-        onError: () => undefined
-      })
+      openSheet(found)
     }, LAUNCH_DELAY_MS)
-    return () => {
-      cancelled = true
-      window.clearTimeout(timer)
-    }
-  }, [app])
+    return () => window.clearTimeout(timer)
+  }, [app, found, openSheet])
 
   const dismiss = useCallback(
     (mode: 'snooze' | 'mute') => {
-      setOpen(false)
+      closeSheet()
       if (mode === 'snooze') snoozeUpdatePrompt()
       else if (info) {
         muteUpdateVersion(info.versionCode)
         showToast(`已跳过 v${info.versionName}，可以在设置页手动更新`)
       }
     },
-    [info, showToast]
+    [closeSheet, info, showToast]
   )
 
   const downloading = job?.phase === 'downloading' || job?.phase === 'verifying'
@@ -169,7 +156,7 @@ export function UpdatePrompt() {
               type="button"
               className="btn btn-ghost btn-sm w-full"
               onClick={() => {
-                setOpen(false)
+                closeSheet()
                 showToast('下载会在后台继续，设置页能看到进度')
               }}
             >

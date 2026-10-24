@@ -9,6 +9,9 @@ import { dateKey } from '../core/stats'
 import { DAY_MS } from '../core/srs'
 import type { DailyMap } from '../core/stats'
 import type { DictEntry } from '../core/types'
+import { muteUpdateVersion, resetUpdatePrefs } from '../core/updatePrefs'
+import { resetUpdateCheckCache } from '../hooks/useUpdateCheck'
+import { useUpdateUi } from '../store/updateUi'
 
 const WORDS: DictEntry[] = [
   { w: 'abandon', t: ['放弃'], us: 'phon0', uk: 'phon0' },
@@ -86,6 +89,10 @@ function toggleButton(): HTMLButtonElement {
 beforeEach(() => {
   cleanup()
   resetStore()
+  resetUpdatePrefs()
+  resetUpdateCheckCache()
+  useUpdateUi.setState({ info: null, open: false })
+  delete (window as { AndroidApp?: unknown }).AndroidApp
   delete (window as { speechSynthesis?: unknown }).speechSynthesis
   window.scrollTo = (() => undefined) as typeof window.scrollTo
   vi.stubGlobal(
@@ -189,5 +196,61 @@ describe('首页的两副面孔', () => {
     fireEvent.click(await screen.findByRole('button', { name: '复习词是怎么算的' }))
     fireEvent.click(screen.getByText('调整重现频率'))
     await waitFor(() => expect(screen.getByText('练习设置')).toBeTruthy())
+  })
+})
+
+/** 假安卓壳：清单里永远有一个比当前安装版本新的包 */
+function installUpdateBridge(installedCode = 11) {
+  const installUpdate = vi.fn()
+  ;(window as { AndroidApp?: Record<string, unknown> }).AndroidApp = {
+    versionCode: () => installedCode,
+    versionName: () => '1.1.11',
+    checkUpdate: () => {
+      ;(window as { __updateAvailable?: (raw: string) => void }).__updateAvailable?.(
+        JSON.stringify({
+          versionCode: installedCode + 1,
+          versionName: '1.1.12',
+          url: './download/cimiao-1.1.12.apk',
+          notes: '修掉了几个小问题'
+        })
+      )
+    },
+    installUpdate,
+    openInBrowser: vi.fn()
+  }
+  return { installUpdate }
+}
+
+describe('首页的新版本提示', () => {
+  it('有新版本时首页出现提示条，点一下就能直接下载安装', async () => {
+    installUpdateBridge()
+    renderHome()
+
+    const chip = await screen.findByRole('button', { name: /有新版本/ })
+    expect(chip.textContent).toContain('v1.1.12')
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    fireEvent.click(chip)
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy())
+    expect(screen.getByText('发现新版本 v1.1.12')).toBeTruthy()
+    expect(screen.getByText(/立即更新/)).toBeTruthy()
+  })
+
+  it('已经是最新版本时不打扰', async () => {
+    installUpdateBridge()
+    ;(window as { AndroidApp?: Record<string, unknown> }).AndroidApp!.checkUpdate = () => {
+      ;(window as { __updateNone?: () => void }).__updateNone?.()
+    }
+    renderHome()
+    await waitFor(() => expect(screen.getByText('四级核心')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /有新版本/ })).toBeNull()
+  })
+
+  it('点过「跳过这个版本」之后，首页也不再提示同一个版本', async () => {
+    installUpdateBridge()
+    muteUpdateVersion(12)
+    renderHome()
+    await waitFor(() => expect(screen.getByText('四级核心')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /有新版本/ })).toBeNull()
   })
 })

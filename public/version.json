@@ -1,8 +1,8 @@
 {
-  "versionCode": 13,
-  "versionName": "1.1.11",
-  "url": "./download/cimiao-1.1.11.apk",
-  "notes": "词书卡片右上角的入口改成「词书」，和应用的叫法保持一致；导入自定义词书、备份说明这些文案也一并统一了。",
+  "versionCode": 14,
+  "versionName": "1.1.12",
+  "url": "./download/cimiao-1.1.12.apk",
+  "notes": "更新入口搬到首页了：有新版本时打卡页会出现一条提示，点一下就在应用里下载并直接呼出安装界面，不用再翻文件管理器。",
   "publishedAt": "2026-10-24",
-  "sha256": "d97a43832a657c47ccac615efccf0dd74a49130798739bae9e2192ca3ea74131"
+  "sha256": "f2931c87fa1d49ef76a13b6909f330a0d8e95c2c1e4de3dd08f3115393777d45"
 }

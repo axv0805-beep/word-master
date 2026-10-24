@@ -756,6 +756,282 @@
     color: var(--on-brand);
     box-shadow: 0 6px 14px -8px var(--brand-glow);
   }
+
+  /* ---------- 首页：两副面孔的切换按钮 ---------- */
+  /* 水滴 + 天数（经典版）与 小树芽（打卡页）之间形变：
+     宽度、圆角、底色一起过渡，两个图标层交叉缩放，切换时像同一颗按钮在变形。 */
+  .home-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 72px;
+    height: 34px;
+    padding: 0;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    box-shadow: 0 8px 20px -18px var(--shadow);
+    transition:
+      width 360ms cubic-bezier(0.22, 0.9, 0.28, 1),
+      border-radius 360ms cubic-bezier(0.22, 0.9, 0.28, 1),
+      background-color 300ms ease,
+      border-color 300ms ease,
+      box-shadow 300ms ease,
+      color 300ms ease;
+  }
+
+  .home-toggle[data-view='sprout'] {
+    width: 38px;
+    border-radius: 12px;
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+    color: var(--on-brand);
+    box-shadow: 0 10px 22px -14px var(--brand-glow);
+  }
+
+  .home-toggle__layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition:
+      opacity 200ms ease,
+      transform 360ms cubic-bezier(0.22, 0.9, 0.28, 1);
+  }
+
+  .home-toggle[data-view='sprout'] .home-toggle__classic {
+    opacity: 0;
+    transform: scale(0.62) rotate(-16deg);
+  }
+
+  .home-toggle[data-view='classic'] .home-toggle__sprout {
+    opacity: 0;
+    transform: scale(0.62) rotate(18deg);
+  }
+
+  .home-toggle__streak {
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .home-toggle__unit {
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    line-height: 1;
+  }
+
+  /* 两副面孔整体交叉淡入：旧的一撤，新的一边淡入一边轻轻上浮 */
+  .home-swap {
+    animation: home-swap-in 320ms cubic-bezier(0.22, 0.9, 0.28, 1) both;
+  }
+
+  /* ---------- 打卡页 ---------- */
+  .sprout {
+    padding-bottom: 8px;
+  }
+
+  .sprout-hero {
+    position: relative;
+    text-align: center;
+    padding: 62px 0 2px;
+  }
+
+  .sprout-hero::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -14px;
+    width: 280px;
+    height: 210px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 42%, var(--brand-glow), transparent 66%);
+    opacity: 0.28;
+    pointer-events: none;
+  }
+
+  .sprout-hero__label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .sprout-hero__label svg {
+    color: var(--wrong);
+    opacity: 0.75;
+  }
+
+  .sprout-hero__count {
+    position: relative;
+    margin: 2px 0 0;
+    font-size: 4.6rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.045em;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sprout-hero__status {
+    position: relative;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+  }
+
+  .sprout-book {
+    display: block;
+    width: 100%;
+    margin-top: 26px;
+    padding: 16px 18px;
+    text-align: left;
+    color: var(--text);
+    transition: transform 200ms ease;
+  }
+
+  .sprout-book:active {
+    transform: scale(0.985);
+  }
+
+  .sprout-book__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .sprout-book__row--meta {
+    margin-top: 8px;
+    font-size: 0.74rem;
+    color: var(--text-faint);
+  }
+
+  .sprout-book__name {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 1rem;
+    font-weight: 700;
+    min-width: 0;
+  }
+
+  .sprout-book__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sprout-book__vocab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--brand-2);
+  }
+
+  .sprout-book__bar {
+    margin-top: 10px;
+  }
+
+  .sprout-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .sprout-metric {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .sprout-metric__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .sprout-metric__value {
+    font-size: 1.12rem;
+    font-weight: 800;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sprout-metric__value i {
+    font-style: normal;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-faint);
+  }
+
+  .sprout-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    color: var(--text-faint);
+    font-size: 0.6rem;
+    line-height: 1;
+    cursor: help;
+  }
+
+  .sprout-start {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    width: 100%;
+    height: 54px;
+    margin-top: 30px;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--on-brand);
+    background: linear-gradient(135deg, var(--brand-2), var(--brand-1));
+    box-shadow: 0 18px 34px -20px var(--brand-glow);
+    transition:
+      transform 200ms ease,
+      box-shadow 200ms ease,
+      opacity 200ms ease;
+  }
+
+  .sprout-start:active:not(:disabled) {
+    transform: scale(0.985);
+    box-shadow: 0 10px 22px -18px var(--brand-glow);
+  }
+
+  .sprout-start:disabled {
+    opacity: 0.7;
+  }
+
+  .sprout-start__play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--sheen-mid);
+  }
 }
 
 @keyframes shimmer {
@@ -802,6 +1078,17 @@
 }
 
 /* 更新提醒弹窗：背景淡入 + 卡片从下方升起 */
+@keyframes home-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @keyframes backdrop-in {
   from {
     opacity: 0;
@@ -838,6 +1125,15 @@
   .update-backdrop,
   .update-dialog {
     animation: none;
+  }
+
+  .home-swap {
+    animation: none;
+  }
+
+  .home-toggle,
+  .home-toggle__layer {
+    transition: none;
   }
 
   .progress-indeterminate {

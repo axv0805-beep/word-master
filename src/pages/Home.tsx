@@ -2,63 +2,200 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui/Icons'
 import { ProgressBar, SectionTitle, StatCard } from '../components/ui/Widgets'
-import { LineChart } from '../components/ui/Charts'
-import { ProgressRing } from '../components/ui/Charts'
+import { LineChart, ProgressRing } from '../components/ui/Charts'
 import { useAppStore } from '../store/appStore'
-import { useBookList } from '../hooks/useDictionary'
+import { useHomeSummary } from '../hooks/useHomeSummary'
 import { useStartRound } from '../hooks/useStartRound'
 import { useGreeting } from '../hooks/useGreeting'
-import { buildSeries, computeStreak, dateKey, ensureDay, totalMinutes, totalQuestions } from '../core/stats'
-import { countMastered } from '../core/mistakes'
-import { roundSizePresetsFor } from '../core/constants'
-import { buildStudyPlan } from '../core/plan'
+import { buildSeries, totalMinutes, totalQuestions } from '../core/stats'
+import type { HomeView } from '../core/types'
 
+/**
+ * 首页：同一份数据，两副面孔。
+ * - 打卡页（默认）：一颗小树芽、已打卡天数、当前词书、新学/复习、开始学习
+ * - 经典版：今日目标圆环、本轮单词数、速览、词书、错题、成长曲线
+ * 右上角那颗按钮在两者之间切换，形变 + 交叉淡入由 CSS 负责。
+ */
 export function HomePage() {
+  const settings = useAppStore((state) => state.settings)
+  const updateSettings = useAppStore((state) => state.updateSettings)
+  const summary = useHomeSummary()
+  const greeting = useGreeting()
+
+  const view: HomeView = settings.homeView ?? 'sprout'
+  const dateLabel = new Date().toLocaleDateString('zh-CN', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long'
+  })
+
+  return (
+    <div className="px-4 pt-5">
+      <header className="flex items-start justify-between mb-4">
+        {view === 'sprout' ? (
+          <div className="muted" style={{ fontSize: '0.78rem', paddingTop: 7 }}>
+            {greeting.hello}
+          </div>
+        ) : (
+          <div>
+            <div className="muted" style={{ fontSize: '0.78rem' }}>
+              {dateLabel}
+            </div>
+            <h1 style={{ fontSize: '1.42rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
+              {greeting.hello}，{greeting.remark}
+            </h1>
+          </div>
+        )}
+        <HomeViewToggle
+          view={view}
+          streak={summary.streak}
+          onToggle={() => updateSettings({ homeView: view === 'sprout' ? 'classic' : 'sprout' })}
+        />
+      </header>
+
+      <div className="home-swap" key={view}>
+        {view === 'sprout' ? <SproutHome /> : <ClassicHome />}
+      </div>
+    </div>
+  )
+}
+
+/** 右上角切换按钮：水滴 + 天数 与 小树芽 之间形变 */
+function HomeViewToggle({ view, streak, onToggle }: { view: HomeView; streak: number; onToggle: () => void }) {
+  const classic = view === 'classic'
+  return (
+    <button
+      type="button"
+      className="home-toggle"
+      data-view={view}
+      onClick={onToggle}
+      aria-label={classic ? '切换到打卡页' : '切换到今日主页'}
+      title={classic ? '切换到打卡页' : '切换到今日主页'}
+    >
+      <span className="home-toggle__layer home-toggle__classic" aria-hidden={!classic}>
+        <span style={{ color: streak > 0 ? 'var(--warning)' : 'var(--text-faint)', display: 'inline-flex' }}>
+          <Icon name="flame" size={15} />
+        </span>
+        <span className="home-toggle__streak">{streak}</span>
+        <span className="home-toggle__unit">天</span>
+      </span>
+      <span className="home-toggle__layer home-toggle__sprout" aria-hidden={classic}>
+        <Icon name="sprout" size={21} strokeWidth={2} />
+      </span>
+    </button>
+  )
+}
+
+/** 打卡页：图二那张脸 */
+function SproutHome() {
+  const navigate = useNavigate()
+  const settings = useAppStore((state) => state.settings)
+  const { currentBook, today, streak, studiedInBook, progressRatio, newWordsToday, mistakeCount, dueReviewCount } =
+    useHomeSummary()
+  const { startRound, starting } = useStartRound()
+  const [startingRound, setStartingRound] = useState(false)
+
+  async function handleStart() {
+    setStartingRound(true)
+    await startRound({ mode: 'alpha', onStarted: () => navigate('/study') })
+    setStartingRound(false)
+  }
+
+  const goalMet = today.questions >= settings.dailyGoal
+  const statusText = goalMet
+    ? '今日已完成'
+    : today.questions > 0
+      ? `今天已学 ${today.questions} / ${settings.dailyGoal} 题`
+      : '今天还没开始'
+
+  return (
+    <div className="sprout">
+      <section className="sprout-hero">
+        <div className="sprout-hero__label">
+          已打卡天数
+          <Icon name="heart" size={11} strokeWidth={2.2} />
+        </div>
+        <div className="sprout-hero__count" aria-label={`已连续打卡 ${streak} 天`}>
+          {streak}
+        </div>
+        <div className="sprout-hero__status">{statusText}</div>
+      </section>
+
+      <button type="button" className="card sprout-book" onClick={() => navigate('/books')}>
+        <span className="sprout-book__row">
+          <span className="sprout-book__name">
+            {currentBook ? currentBook.name : '还没有词书'}
+            <Icon name="chevronRight" size={14} />
+          </span>
+          <span className="sprout-book__vocab">
+            <Icon name="book" size={15} strokeWidth={1.9} />
+            词表
+          </span>
+        </span>
+        <span className="sprout-book__row sprout-book__row--meta">
+          <span>已学 {(progressRatio * 100).toFixed(1)}%</span>
+          <span>
+            {studiedInBook}/{currentBook ? currentBook.count : 0} 词
+          </span>
+        </span>
+        <ProgressBar value={progressRatio} className="sprout-book__bar" />
+      </button>
+
+      <div className="sprout-metrics">
+        <div className="sprout-metric">
+          <span className="sprout-metric__label">新学词</span>
+          <span className="sprout-metric__value">
+            {newWordsToday}
+            <i>/{settings.dailyGoal}</i>
+          </span>
+        </div>
+        <div className="sprout-metric">
+          <span className="sprout-metric__label">
+            复习词
+            <span className="sprout-hint" title="复习词 = 错题本里今天到期的词 / 错题总数">
+              ?
+            </span>
+          </span>
+          <span className="sprout-metric__value">
+            {dueReviewCount}
+            <i>/{mistakeCount}</i>
+          </span>
+        </div>
+      </div>
+
+      <button type="button" className="btn sprout-start" onClick={() => void handleStart()} disabled={starting}>
+        <span className="sprout-start__play">
+          <Icon name="play" size={14} strokeWidth={2.6} />
+        </span>
+        {startingRound || starting ? '准备中…' : '开始学习'}
+      </button>
+    </div>
+  )
+}
+
+/** 经典版：原来的今日主页，去掉页头（页头由 HomePage 统一渲染） */
+function ClassicHome() {
   const navigate = useNavigate()
   const settings = useAppStore((state) => state.settings)
   const updateSettings = useAppStore((state) => state.updateSettings)
   const daily = useAppStore((state) => state.daily)
-  const progress = useAppStore((state) => state.progress)
-  const study = useAppStore((state) => state.study)
-  const mistakes = useAppStore((state) => state.mistakes)
-  const greeting = useGreeting()
-  const { books } = useBookList()
+  const {
+    currentBook,
+    today,
+    todayAccuracy,
+    studiedInBook,
+    progressRatio,
+    cursor,
+    plan,
+    roundSizePresets,
+    masteredCount,
+    mistakeCount
+  } = useHomeSummary()
   const { startRound, starting } = useStartRound()
   const [pending, setPending] = useState<'alpha' | 'random' | 'mistakes' | null>(null)
 
-  const currentBook = books.find((book) => book.id === settings.bookId) ?? books[0]
-
-  const today = useMemo(() => ensureDay(daily, dateKey(Date.now()), 0), [daily])
-
   const goalRatio = settings.dailyGoal > 0 ? today.questions / settings.dailyGoal : 0
-  const todayAccuracy = today.questions > 0 ? today.correct / today.questions : 0
-  const streak = computeStreak(daily)
-  const series = buildSeries(daily, 7)
-  const masteredCount = countMastered(progress)
-  const mistakeCount = Object.keys(mistakes).length
-
-  const studiedInBook = useMemo(() => {
-    const prefix = `${settings.bookId}:`
-    let count = 0
-    for (const key of Object.keys(progress)) if (key.startsWith(prefix)) count += 1
-    return count
-  }, [progress, settings.bookId])
-
-  const cursor = study.alphaCursor[settings.bookId] ?? 0
-  const progressRatio = currentBook && currentBook.count > 0 ? studiedInBook / currentBook.count : 0
-  const roundSizePresets = useMemo(() => roundSizePresetsFor(settings.dailyGoal), [settings.dailyGoal])
-
-  const plan = useMemo(() => {
-    if (!currentBook) return null
-    return buildStudyPlan({
-      bookId: currentBook.id,
-      bookName: currentBook.name,
-      totalWords: currentBook.count,
-      studiedWords: studiedInBook,
-      dailyGoal: settings.dailyGoal,
-      roundSize: settings.roundSize
-    })
-  }, [currentBook, studiedInBook, settings.dailyGoal, settings.roundSize])
+  const series = useMemo(() => buildSeries(daily, 7), [daily])
 
   async function handleStart(mode: 'alpha' | 'random' | 'mistakes') {
     setPending(mode)
@@ -67,30 +204,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="px-4 pt-5">
-      {/* 顶部问候 */}
-      <header className="flex items-start justify-between mb-4">
-        <div>
-          <div className="muted" style={{ fontSize: '0.78rem' }}>
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
-          </div>
-          <h1 style={{ fontSize: '1.42rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
-            {greeting.hello}，{greeting.remark}
-          </h1>
-        </div>
-        <div
-          className="flex items-center gap-1 rounded-full px-3 py-1.5"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-          title="连续打卡天数"
-        >
-          <span style={{ color: streak > 0 ? 'var(--warning)' : 'var(--text-faint)' }}>
-            <Icon name="flame" size={16} />
-          </span>
-          <span style={{ fontWeight: 700, fontSize: '0.86rem' }}>{streak}</span>
-          <span className="muted" style={{ fontSize: '0.7rem' }}>天</span>
-        </div>
-      </header>
-
+    <div>
       {/* 今日目标 */}
       <section className="card-brand p-5 relative overflow-hidden">
         <div

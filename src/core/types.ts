@@ -65,6 +65,14 @@ export type MistakeReplayMode =
 /** 主题 ID：3 套深色 + 3 套浅色，具体色值见 src/index.css */
 export type ThemeId = 'forest' | 'dark' | 'light' | 'aurora' | 'sakura' | 'sunset' | 'ocean'
 
+/**
+ * 首页的两种面貌：
+ * - sprout：打卡页（默认），一颗小树芽 + 已打卡天数 + 开始学习
+ * - classic：今日目标圆环 + 本轮单词数 + 速览卡片的经典版
+ * 右上角那颗按钮负责在两者之间切换。
+ */
+export type HomeView = 'sprout' | 'classic'
+
 export interface Settings {
   bookId: string
   /** 每一轮题目数量 */
@@ -87,6 +95,8 @@ export interface Settings {
   theme: ThemeId
   /** 拼写题是否显示音标提示 */
   showPhoneticInSpelling: boolean
+  /** 首页显示哪一种面貌（默认打卡页） */
+  homeView: HomeView
   /** 是否已完成首次引导（选词书 + 定每日目标） */
   onboarded: boolean
 }

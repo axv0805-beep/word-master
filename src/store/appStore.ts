@@ -36,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyGoal: 30,
   theme: 'forest',
   showPhoneticInSpelling: true,
+  homeView: 'sprout',
   onboarded: false
 }
 

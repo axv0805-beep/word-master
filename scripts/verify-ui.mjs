@@ -139,6 +139,18 @@ async function checkClickable(text, { requireHit = true } = {}) {
   return true
 }
 
+/** 首页当前是哪一副面孔：'sprout'（打卡页，默认）或 'classic'（经典版） */
+async function homeView() {
+  return page.evaluate(() => document.querySelector('.home-toggle')?.getAttribute('data-view') ?? null)
+}
+
+/** 经典版的检查（滚动、档位、问候语）都要求先切到经典版 */
+async function useClassicHome() {
+  if ((await homeView()) !== 'sprout') return
+  await page.click('.home-toggle')
+  await page.waitForTimeout(420)
+}
+
 /** 写入一份「引导已完成」的存档，让 1–7 步直接进入主应用 */
 async function seedOnboarded() {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
@@ -196,6 +208,15 @@ else {
 }
 
 console.log('\n[2/8] 检查页面滚动')
+// 打卡页内容不满一屏，滚动要用更长的经典版来验证
+await useClassicHome()
+Object.assign(
+  structure,
+  await page.evaluate(() => ({
+    scrollHeight: document.documentElement.scrollHeight,
+    viewportHeight: window.innerHeight
+  }))
+)
 if (structure.scrollHeight <= structure.viewportHeight) {
   notes.push('首页内容没有超出一屏，无法验证滚动（可忽略）')
 } else {
@@ -210,6 +231,25 @@ if (structure.scrollHeight <= structure.viewportHeight) {
 
 console.log('\n[3/8] 检查首页控件命中')
 await checkClickable('开始学习')
+// 切到打卡页，验证大号打卡数字与「开始学习」
+await page.click('.home-toggle')
+await page.waitForTimeout(420)
+const sproutView = await homeView()
+if (sproutView !== 'sprout') fail('点右上角按钮后应切到打卡页（sprout），实际是 ' + sproutView)
+else pass('点右上角按钮可切到打卡页')
+const sproutCount = await page.evaluate(
+  () => document.querySelector('.sprout-hero__count')?.textContent?.trim() ?? ''
+)
+if (/^\d+$/.test(sproutCount)) pass('打卡页显示打卡天数「' + sproutCount + '」')
+else fail('打卡页没有显示打卡天数（读到「' + sproutCount + '」）')
+await checkClickable('开始学习')
+await page.screenshot({ path: path.join(ARTIFACTS, 'ui-1b-home-sprout.png') })
+// 再切回经典版
+await page.click('.home-toggle')
+await page.waitForTimeout(420)
+const classicView = await homeView()
+if (classicView !== 'classic') fail('再点一次应切回经典版（classic），实际是 ' + classicView)
+else pass('再点一次切回经典版')
 await checkClickable('随机')
 await checkClickable('切换')
 
@@ -392,6 +432,7 @@ for (const item of TIME_CASES) {
   await page.clock.setFixedTime(item.time)
   await page.goto(baseUrl, { waitUntil: 'networkidle' })
   await page.waitForTimeout(600)
+  await useClassicHome()
   const heading = await page.evaluate(() => document.querySelector('h1')?.textContent?.trim() ?? '')
   if (heading.startsWith(item.expect)) pass(`${item.time.getHours()}:00 显示「${heading}」`)
   else fail(`${item.time.getHours()}:00 问候语应为「${item.expect}...」，实际是「${heading}」`)
@@ -402,6 +443,7 @@ console.log('\n[7/8] 检查首页「本轮单词数」选择（10-30）')
 await page.clock.setFixedTime(new Date(2025, 5, 1, 10, 0, 0))
 await page.goto(baseUrl, { waitUntil: 'networkidle' })
 await page.waitForTimeout(700)
+await useClassicHome()
 
 const PRESETS = ['本轮 10 个单词', '本轮 15 个单词', '本轮 20 个单词', '本轮 25 个单词', '本轮 30 个单词']
 const presets = await page.evaluate(() =>
@@ -542,6 +584,9 @@ const saved = await page.evaluate(() => {
 if (saved.onboarded === true && saved.bookId === 'cet6' && saved.dailyGoal === 20 && saved.roundSize === 15)
   pass(`引导结果已保存：${saved.bookId} / 每天 ${saved.dailyGoal} 词 / 每轮 ${saved.roundSize} 词`)
 else fail(`引导结果未正确保存：${JSON.stringify(saved)}`)
+
+// 预计天数在经典版首页展示，先切回经典版
+await useClassicHome()
 
 const homeText = await page.evaluate(() => document.body.innerText)
 if (homeText.includes('预计还需') && homeText.includes('118 天')) pass('首页显示「预计还需 118 天背完」')

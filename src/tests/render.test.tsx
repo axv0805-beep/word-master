@@ -78,7 +78,9 @@ function resetStore() {
   useAppStore.setState({
     // 大部分用例验证的是主应用，这里直接从「已完成引导」开始；
     // 引导流程单独用 setOnboarded(false) 的用例覆盖。
-    settings: { ...DEFAULT_SETTINGS, autoSpeak: false, onlineAudio: false, onboarded: true },
+    // 这些用例验证的是经典版首页（今日目标 / 本轮单词数 / 速览…），
+    // 所以显式把首页固定在 classic；打卡页单独在 homeSprout.test.tsx 里覆盖。
+    settings: { ...DEFAULT_SETTINGS, autoSpeak: false, onlineAudio: false, onboarded: true, homeView: 'classic' },
     progress: {},
     mistakes: {},
     daily: {},

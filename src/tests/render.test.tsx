@@ -464,7 +464,7 @@ describe('界面渲染冒烟测试', () => {
     await waitFor(() => expect(screen.getByText('四级核心')).toBeTruthy())
     expect(screen.getByText('按字母顺序')).toBeTruthy()
     expect(screen.getByText(/从指定首字母开始/)).toBeTruthy()
-    expect(screen.getByText(/导入自定义词表/)).toBeTruthy()
+    expect(screen.getByText(/导入自定义词书/)).toBeTruthy()
   })
 })
 

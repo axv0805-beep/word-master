@@ -7,7 +7,7 @@ let cachedIndex: WordIndex | null = null
 let cachedKey = ''
 
 /**
- * 语料库索引（全部内置词书 + 用户导入的词表，去重后约 6500+ 词）。
+ * 语料库索引（全部内置词书 + 用户导入的自定义词书，去重后约 6500+ 词）。
  * 「易混词」与「词形变化」都只在词库里真实存在的词条上落地。
  */
 export function useCorpus(): { index: WordIndex | null; ready: boolean } {

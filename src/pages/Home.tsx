@@ -130,7 +130,7 @@ function SproutHome() {
           </span>
           <span className="sprout-book__vocab">
             <Icon name="book" size={15} strokeWidth={1.9} />
-            词表
+            词书
           </span>
         </span>
         <span className="sprout-book__row sprout-book__row--meta">

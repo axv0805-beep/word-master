@@ -159,10 +159,13 @@ describe('首页的两副面孔', () => {
     await waitFor(() => expect(useSessionStore.getState().engine).not.toBeNull())
   })
 
-  it('词书卡上的「词表」跳转到词书页', async () => {
+  it('词书卡上的「词书」跳转到词书列表', async () => {
     renderHome()
     await waitFor(() => expect(screen.getByText('四级核心')).toBeTruthy())
-    fireEvent.click(screen.getByText('词表'))
+    // 「词书」在底部导航里也有，这里点词书卡右上角那个入口
+    const vocabEntry = document.querySelector('.sprout-book__vocab')
+    expect(vocabEntry?.textContent).toContain('词书')
+    fireEvent.click(vocabEntry as Element)
     await waitFor(() => expect(screen.getByText('选择词书与起点，开始一轮练习')).toBeTruthy())
   })
 

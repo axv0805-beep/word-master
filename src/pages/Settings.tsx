@@ -410,7 +410,7 @@ export function SettingsPage() {
 
       <SectionTitle title="数据管理" />
       <div className="card overflow-hidden">
-        <Row title="导出备份" hint="把学习记录、错题本、自定义词表导出为 JSON 文件">
+        <Row title="导出备份" hint="把学习记录、错题本、自定义词书导出为 JSON 文件">
           <button type="button" className="btn btn-soft btn-sm" onClick={download}>
             <Icon name="download" size={15} />
             导出
@@ -463,7 +463,7 @@ export function SettingsPage() {
             </div>
           </div>
         ) : null}
-        <Row title="恢复出厂设置" hint="连设置与自定义词表一起清空">
+        <Row title="恢复出厂设置" hint="连设置与自定义词书一起清空">
           <button
             type="button"
             className="btn btn-soft btn-sm"

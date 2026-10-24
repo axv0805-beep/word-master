@@ -38,7 +38,7 @@ export function BooksPage() {
       }
       const book = {
         id: `custom-${Date.now()}`,
-        name: file.name.replace(/\.[^.]+$/, '').slice(0, 20) || '我的词表',
+        name: file.name.replace(/\.[^.]+$/, '').slice(0, 20) || '我的词书',
         description: `用户导入（${format}）· ${words.length} 词`,
         words,
         createdAt: Date.now()
@@ -172,7 +172,7 @@ export function BooksPage() {
         </button>
         <button type="button" className="btn btn-soft btn-md w-full" onClick={() => fileRef.current?.click()}>
           <Icon name="upload" size={16} />
-          导入自定义词表（CSV / JSON / TXT）
+          导入自定义词书（CSV / JSON / TXT）
         </button>
         <input
           ref={fileRef}

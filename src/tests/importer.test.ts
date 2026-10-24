@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseDelimited, parseWordList } from '../core/importer'
 
-describe('importer 自定义词表解析', () => {
+describe('importer 自定义词书解析', () => {
   it('解析本 App 的 JSON 格式', () => {
     const { words, format } = parseWordList(
       JSON.stringify([

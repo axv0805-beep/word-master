@@ -63,7 +63,7 @@ export function parseDelimited(text: string): DictEntry[] {
 }
 
 /**
- * 解析用户导入的自定义词表，支持：
+ * 解析用户导入的自定义词书，支持：
  *   - 本 App 导出格式 / 通用 JSON 数组：[{w,t}]、[{name,trans}]、[{word,meaning}]
  *   - CSV / TSV：word,中文释义[,美音[,英音]]
  *   - 纯文本：word 中文释义

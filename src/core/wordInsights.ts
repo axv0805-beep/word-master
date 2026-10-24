@@ -33,7 +33,7 @@ function groupForms(forms: WordForm[]): WordFormGroup[] {
 
 /**
  * 分析一个词的「词形变化 + 易混词」。
- * 结果按词缓存；换语料库（例如导入了自定义词表）时整体失效。
+ * 结果按词缓存；换语料库（例如导入了自定义词书）时整体失效。
  */
 export function analyzeWord(word: string, index: WordIndex): WordInsightsResult {
   if (cacheIndex !== index) {

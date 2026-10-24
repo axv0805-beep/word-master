@@ -981,17 +981,68 @@
   }
 
   .sprout-hint {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 14px;
-    height: 14px;
+    width: 20px;
+    height: 20px;
+    margin-left: 4px;
+    padding: 0;
     border-radius: 50%;
     border: 1px solid var(--border-strong);
+    background: transparent;
     color: var(--text-faint);
-    font-size: 0.6rem;
+    font-size: 0.66rem;
+    font-weight: 700;
     line-height: 1;
-    cursor: help;
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease,
+      background-color 160ms ease;
+  }
+
+  /* 视觉只有 20px，实际点击范围扩到 30px，手指好按 */
+  .sprout-hint::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+  }
+
+  .sprout-hint:hover,
+  .sprout-hint[aria-expanded='true'] {
+    color: var(--brand-1);
+    border-color: var(--brand-1);
+    background: var(--brand-soft);
+  }
+
+  .sprout-note {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    animation: note-in 240ms cubic-bezier(0.22, 0.9, 0.28, 1) both;
+  }
+
+  .sprout-note p {
+    margin: 0;
+  }
+
+  .sprout-note strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  .sprout-note__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .sprout-start {
@@ -1082,6 +1133,17 @@
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes note-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;

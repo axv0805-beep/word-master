@@ -94,6 +94,7 @@ function SproutHome() {
     useHomeSummary()
   const { startRound, starting } = useStartRound()
   const [startingRound, setStartingRound] = useState(false)
+  const [reviewHintOpen, setReviewHintOpen] = useState(false)
 
   async function handleStart() {
     setStartingRound(true)
@@ -152,9 +153,16 @@ function SproutHome() {
         <div className="sprout-metric">
           <span className="sprout-metric__label">
             复习词
-            <span className="sprout-hint" title="复习词 = 错题本里今天到期的词 / 错题总数">
+            <button
+              type="button"
+              className="sprout-hint"
+              aria-expanded={reviewHintOpen}
+              aria-controls="sprout-review-hint"
+              aria-label="复习词是怎么算的"
+              onClick={() => setReviewHintOpen((open) => !open)}
+            >
               ?
-            </span>
+            </button>
           </span>
           <span className="sprout-metric__value">
             {dueReviewCount}
@@ -162,6 +170,23 @@ function SproutHome() {
           </span>
         </div>
       </div>
+
+      {reviewHintOpen && (
+        <div className="sprout-note" id="sprout-review-hint">
+          <p>
+            复习词只算<strong>错题本</strong>里到期的词：刚上手错得少，这里几乎是 0；错题攒起来后会慢慢变多，
+            每轮练习会按「错题重现频率」把它们插回来。
+          </p>
+          <div className="sprout-note__actions">
+            <button type="button" className="btn btn-soft btn-sm" onClick={() => navigate('/settings')}>
+              调整重现频率
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReviewHintOpen(false)}>
+              知道了
+            </button>
+          </div>
+        </div>
+      )}
 
       <button type="button" className="btn sprout-start" onClick={() => void handleStart()} disabled={starting}>
         <span className="sprout-start__play">

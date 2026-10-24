@@ -165,4 +165,26 @@ describe('首页的两副面孔', () => {
     fireEvent.click(screen.getByText('词表'))
     await waitFor(() => expect(screen.getByText('选择词书与起点，开始一轮练习')).toBeTruthy())
   })
+
+  it('复习词旁边的问号能点开解释，也能收起来', async () => {
+    renderHome()
+    const hint = await screen.findByRole('button', { name: '复习词是怎么算的' })
+    expect(hint.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText(/复习词只算/)).toBeNull()
+
+    fireEvent.click(hint)
+    expect(hint.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText(/复习词只算/)).toBeTruthy()
+
+    fireEvent.click(screen.getByText('知道了'))
+    expect(hint.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText(/复习词只算/)).toBeNull()
+  })
+
+  it('解释里的「调整重现频率」跳到设置页', async () => {
+    renderHome()
+    fireEvent.click(await screen.findByRole('button', { name: '复习词是怎么算的' }))
+    fireEvent.click(screen.getByText('调整重现频率'))
+    await waitFor(() => expect(screen.getByText('练习设置')).toBeTruthy())
+  })
 })

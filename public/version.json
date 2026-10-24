@@ -1,8 +1,8 @@
 {
-  "versionCode": 12,
-  "versionName": "1.1.10",
-  "url": "./download/cimiao-1.1.10.apk",
-  "notes": "复习词旁边的问号现在能点开了：点一下会展开一段说明，告诉你怎么算、为什么现在是 0，还能一键跳到设置调整重现频率。",
+  "versionCode": 13,
+  "versionName": "1.1.11",
+  "url": "./download/cimiao-1.1.11.apk",
+  "notes": "词书卡片右上角的入口改成「词书」，和应用的叫法保持一致；导入自定义词书、备份说明这些文案也一并统一了。",
   "publishedAt": "2026-10-24",
-  "sha256": "25b537265c24a24a73f2f9028ebd8d222ba26be8b887b407f5df2c4ff2135209"
+  "sha256": "d97a43832a657c47ccac615efccf0dd74a49130798739bae9e2192ca3ea74131"
 }

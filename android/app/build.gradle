@@ -11,8 +11,8 @@ android {
     minSdk 23
     targetSdk 34
     // 更新时把 versionCode +1（应用内「检查更新」用它和站点上的 version.json 比较）
-    versionCode 15
-    versionName '1.1.13'
+    versionCode 16
+    versionName '1.1.14'
   }
 
   // 可选的自定义签名（不要提交 keystore.properties 和 .jks，已在 .gitignore 里）：

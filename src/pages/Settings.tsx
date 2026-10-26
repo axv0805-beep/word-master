@@ -11,7 +11,14 @@ import { buildStudyPlan, formatFinishDate } from '../core/plan'
 import { THEMES, themeById } from '../core/theme'
 import type { MistakeReplayMode, QuestionType } from '../core/types'
 import { APP_VERSION, UPDATE_MANIFEST_URL, isNativeShell, nativeApp, requestUpdateCheck } from '../core/native'
-import { listSpeechVoices, primeSpeech, speakLines, stopSpeaking, type SpeechVoice } from '../core/speech'
+import {
+  listSpeechVoices,
+  primeSpeech,
+  speakLines,
+  stopSpeaking,
+  voiceStorageKey,
+  type SpeechVoice
+} from '../core/speech'
 
 const QUESTION_TYPES: Array<{ value: QuestionType; label: string; hint: string }> = [
   { value: 'zh2en', label: '看中选英', hint: '给中文意思，选英文单词 4 选 1' },
@@ -115,7 +122,15 @@ export function SettingsPage() {
     let tries = 0
     const load = () => {
       if (!alive) return
-      const list = listSpeechVoices().filter((voice) => /^en([-_]|$)/i.test(voice.lang))
+      const all = listSpeechVoices()
+      // 英语排前面（听力材料是英语），同语言里本地音色优先，网络音色垫后
+      const list = [...all].sort((a, b) => {
+        const aEn = /^en([-_]|$)/i.test(a.lang) ? 0 : 1
+        const bEn = /^en([-_]|$)/i.test(b.lang) ? 0 : 1
+        if (aEn !== bEn) return aEn - bEn
+        if (a.local !== b.local) return a.local ? -1 : 1
+        return String(a.label ?? '').localeCompare(String(b.label ?? ''))
+      })
       if (list.length > 0 || tries >= 6) {
         setVoices(list)
         return
@@ -129,6 +144,18 @@ export function SettingsPage() {
       window.clearTimeout(timer)
     }
   }, [])
+
+  // 按引擎分组，顺便标出引擎名（比如「小米语音」），方便用户认出自己装的那个
+  const groupedVoices = useMemo(() => {
+    const groups = new Map<string, SpeechVoice[]>()
+    for (const voice of voices) {
+      const label = voice.label?.trim() || (voice.engine ? voice.engine : '系统语音')
+      const list = groups.get(label)
+      if (list) list.push(voice)
+      else groups.set(label, [voice])
+    }
+    return [...groups.entries()].map(([label, list]) => ({ label, voices: list }))
+  }, [voices])
 
   const tryVoice = () => {
     if (voiceTrying) {
@@ -437,8 +464,8 @@ export function SettingsPage() {
           title="听力音色"
           hint={
             voices.length > 0
-              ? '听力材料统一用这一把嗓子，男声/女声只靠音高区分'
-              : '这台设备没读到英语语音，会用系统默认音色朗读'
+              ? '列出手机上所有语音引擎的音色，英语优先；男声/女声只靠音高区分'
+              : '这台设备没读到任何语音，会用系统默认音色朗读'
           }
           stacked
         >
@@ -450,11 +477,15 @@ export function SettingsPage() {
               onChange={(event) => updateSettings({ speechVoice: event.target.value })}
             >
               <option value="">自动（挑最自然的英语音色）</option>
-              {voices.map((voice) => (
-                <option key={voice.name} value={voice.name}>
-                  {voice.name} · {voice.lang}
-                  {voice.local ? '' : '（网络）'}
-                </option>
+              {groupedVoices.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.voices.map((voice) => (
+                    <option key={`${group.label}-${voice.name}`} value={voiceStorageKey(voice)}>
+                      {voice.name} · {voice.lang}
+                      {voice.local ? '' : '（网络）'}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <button

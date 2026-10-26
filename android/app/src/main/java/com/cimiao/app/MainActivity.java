@@ -44,12 +44,16 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
@@ -77,6 +81,8 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private TextToSpeech tts;
+    /** 用户可能挑了别的 TTS 引擎（例如小米 MiMo）的音色，按包名各留一个实例 */
+    private final Map<String, TextToSpeech> extraEngines = new HashMap<>();
     /** 防止连点「立即更新」开出两个下载线程抢同一个文件 */
     private final AtomicBoolean updateRunning = new AtomicBoolean(false);
     /** 当前已下载字节数 / 总字节数（网页重新打开时用它恢复进度条） */
@@ -137,22 +143,7 @@ public class MainActivity extends Activity {
             }
         });
         // 听力材料是一整段多句，需要知道「真的播完了」才能把界面切回可重播状态
-        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-            @Override
-            public void onStart(String utteranceId) {
-                // 不需要处理
-            }
-
-            @Override
-            public void onDone(String utteranceId) {
-                notifySpeechLinesDone(utteranceId);
-            }
-
-            @Override
-            public void onError(String utteranceId) {
-                notifySpeechLinesDone(utteranceId);
-            }
-        });
+        attachEndListener(tts);
         webView.addJavascriptInterface(new SpeechBridge(), "AndroidSpeech");
         // 应用内更新：网页读站点上的 version.json，比 versionCode 之后调 installUpdate
         webView.addJavascriptInterface(new AppBridge(), "AndroidApp");
@@ -208,99 +199,208 @@ public class MainActivity extends Activity {
         public void stop() {
             runOnUiThread(() -> {
                 if (tts != null) tts.stop();
+                synchronized (extraEngines) {
+                    for (TextToSpeech engine : extraEngines.values()) engine.stop();
+                }
             });
         }
 
         /**
          * 整段朗读听力材料：json 是 [{"t": 文本, "l": "en-US", "p": 音高, "r": 语速}]。
-         * voiceName 非空时优先用那把音色（设置页里选的），否则用默认英语音色。
+         * voiceSpec 形如「引擎包名::音色名」；不带 :: 的是默认引擎的音色，空则交给系统挑。
          * 全部用 QUEUE_ADD 排队，句间插静音，最后再排一个空句当结束标记。
          */
         @JavascriptInterface
-        public void speakLines(final String json, final float rate, final String voiceName) {
+        public void speakLines(final String json, final float rate, final String voiceSpec) {
             if (json == null || json.isEmpty()) return;
-            runOnUiThread(() -> {
-                if (tts == null) {
-                    notifySpeechLinesDone(SPEECH_END_ID);
-                    return;
-                }
-                tts.stop();
-                applyVoice(voiceName);
-                tts.setPitch(1f);
-                tts.setSpeechRate(rate > 0 ? rate : 0.94f);
-                float fallbackRate = rate > 0 ? rate : 0.94f;
-                try {
-                    JSONArray lines = new JSONArray(json);
-                    int spoken = 0;
-                    for (int i = 0; i < lines.length(); i++) {
-                        JSONObject line = lines.getJSONObject(i);
-                        String text = line.optString("t", "");
-                        String lang = line.optString("l", "en-US");
-                        if (text.isEmpty()) continue;
-                        if (voiceName == null || voiceName.isEmpty()) {
-                            tts.setLanguage("en-GB".equals(lang) ? Locale.UK : Locale.US);
-                        }
-                        float pitch = (float) line.optDouble("p", 1);
-                        float lineRate = (float) line.optDouble("r", fallbackRate);
-                        tts.setSpeechRate(lineRate > 0 ? lineRate : fallbackRate);
-                        // 音高也按句设置：男声女声共用同一把嗓子，只靠音高区分角色
-                        tts.setPitch(pitch > 0 ? pitch : 1f);
-                        tts.speak(text, TextToSpeech.QUEUE_ADD, null, "line-" + i);
-                        tts.playSilentUtterance(SPEECH_GAP_MS, TextToSpeech.QUEUE_ADD, "gap-" + i);
-                        spoken++;
-                    }
-                    tts.playSilentUtterance(120, TextToSpeech.QUEUE_ADD, SPEECH_END_ID);
-                    if (spoken == 0) {
-                        notifySpeechLinesDone(SPEECH_END_ID);
-                    }
-                } catch (JSONException e) {
-                    notifySpeechLinesDone(SPEECH_END_ID);
-                }
-            });
+            final String[] spec = splitVoiceSpec(voiceSpec);
+            // 换引擎要新建 TextToSpeech 实例、等它初始化，别占着主线程
+            new Thread(() -> {
+                TextToSpeech speaker = engineInstance(spec[0], 2500);
+                runOnUiThread(() -> speakLinesOn(speaker != null ? speaker : tts, json, rate, spec[1]));
+            }).start();
         }
 
         /**
-         * 设备上装了的英语语音，给设置页的「听力音色」用。
-         * getVoices() 可能要读引擎数据，放到后台线程拼 JSON，网页侧解析失败就当没有列表。
+         * 设备上所有 TTS 引擎的音色，给设置页的「听力音色」用。
+         * 每一项带 engine（包名）与 label（引擎名），网页侧拼成「引擎::音色」存起来。
+         * 这个调用跑在 WebView 的 JS 线程上，允许它阻塞几秒去初始化别的引擎。
          */
         @JavascriptInterface
         public String getVoices() {
-            if (tts == null) return "[]";
             JSONArray array = new JSONArray();
+            if (tts == null) return array.toString();
             try {
-                Set<Voice> voices = tts.getVoices();
-                if (voices == null) return "[]";
-                for (Voice voice : voices) {
-                    Locale locale = voice.getLocale();
-                    if (locale == null || !"en".equals(locale.getLanguage())) continue;
-                    if (voice.isNetworkConnectionRequired()) continue;
-                    JSONObject item = new JSONObject();
-                    item.put("name", voice.getName());
-                    item.put("lang", locale.toLanguageTag());
-                    item.put("local", !voice.isNetworkConnectionRequired());
-                    array.put(item);
+                String defaultPkg = tts.getDefaultEngine() == null ? "" : tts.getDefaultEngine();
+                String defaultLabel = engineLabel(defaultPkg, "系统语音");
+                collectVoices(array, tts, defaultPkg, defaultLabel, true);
+                List<TextToSpeech.EngineInfo> engines = tts.getEngines();
+                if (engines != null) {
+                    for (TextToSpeech.EngineInfo info : engines) {
+                        if (info.name == null || info.name.equals(defaultPkg)) continue;
+                        TextToSpeech engine = engineInstance(info.name, 2200);
+                        if (engine != null) collectVoices(array, engine, info.name, info.label, false);
+                    }
                 }
             } catch (Exception e) {
-                return "[]";
+                return array.toString();
             }
             return array.toString();
         }
     }
 
-    /** 按名字挑音色（设置页传来的）；找不到就保持当前默认英语音色 */
-    private void applyVoice(String voiceName) {
-        if (tts == null || voiceName == null || voiceName.isEmpty()) return;
+    /** 把「引擎包名::音色名」拆开；不带 :: 时视为默认引擎的音色 */
+    private static String[] splitVoiceSpec(String spec) {
+        if (spec == null) return new String[]{"", ""};
+        String trimmed = spec.trim();
+        int at = trimmed.indexOf("::");
+        if (at < 0) return new String[]{"", trimmed};
+        return new String[]{trimmed.substring(0, at), trimmed.substring(at + 2)};
+    }
+
+    /** 引擎在系统里显示的名字，拿不到就用兜底文案 */
+    private String engineLabel(String pkg, String fallback) {
+        if (tts == null) return fallback;
         try {
-            Set<Voice> voices = tts.getVoices();
+            List<TextToSpeech.EngineInfo> engines = tts.getEngines();
+            if (engines != null) {
+                for (TextToSpeech.EngineInfo info : engines) {
+                    if (info.name != null && info.name.equals(pkg) && info.label != null) return info.label;
+                }
+            }
+        } catch (Exception e) {
+            // 引擎列表读不到时用兜底名
+        }
+        return fallback;
+    }
+
+    /** 某个 TTS 实例播完最后一句时通知网页 */
+    private void attachEndListener(TextToSpeech speaker) {
+        if (speaker == null) return;
+        speaker.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String utteranceId) {
+                // 不需要处理
+            }
+
+            @Override
+            public void onDone(String utteranceId) {
+                notifySpeechLinesDone(utteranceId);
+            }
+
+            @Override
+            public void onError(String utteranceId) {
+                notifySpeechLinesDone(utteranceId);
+            }
+        });
+    }
+
+    /** 取（或新建）指定引擎的实例；pkg 为空表示系统默认引擎 */
+    private TextToSpeech engineInstance(String pkg, long timeoutMs) {
+        if (pkg == null || pkg.isEmpty()) return tts;
+        synchronized (extraEngines) {
+            TextToSpeech pooled = extraEngines.get(pkg);
+            if (pooled != null) return pooled;
+        }
+        final CountDownLatch latch = new CountDownLatch(1);
+        final int[] status = new int[]{TextToSpeech.ERROR};
+        final TextToSpeech created = new TextToSpeech(this, code -> {
+            status[0] = code;
+            latch.countDown();
+        }, pkg);
+        try {
+            latch.await(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+        if (status[0] != TextToSpeech.SUCCESS) {
+            created.shutdown();
+            return null;
+        }
+        attachEndListener(created);
+        synchronized (extraEngines) {
+            extraEngines.put(pkg, created);
+        }
+        return created;
+    }
+
+    /** 在指定实例上把整段材料排进队列（主线程） */
+    private void speakLinesOn(TextToSpeech speaker, String json, float rate, String voiceName) {
+        if (speaker == null) {
+            notifySpeechLinesDone(SPEECH_END_ID);
+            return;
+        }
+        speaker.stop();
+        applyVoice(speaker, voiceName);
+        float fallbackRate = rate > 0 ? rate : 0.94f;
+        speaker.setPitch(1f);
+        speaker.setSpeechRate(fallbackRate);
+        try {
+            JSONArray lines = new JSONArray(json);
+            int spoken = 0;
+            for (int i = 0; i < lines.length(); i++) {
+                JSONObject line = lines.getJSONObject(i);
+                String text = line.optString("t", "");
+                String lang = line.optString("l", "en-US");
+                if (text.isEmpty()) continue;
+                if (voiceName == null || voiceName.isEmpty()) {
+                    speaker.setLanguage("en-GB".equals(lang) ? Locale.UK : Locale.US);
+                }
+                float pitch = (float) line.optDouble("p", 1);
+                float lineRate = (float) line.optDouble("r", fallbackRate);
+                speaker.setSpeechRate(lineRate > 0 ? lineRate : fallbackRate);
+                // 音高按句设置：男声女声共用同一把嗓子，只靠音高区分角色
+                speaker.setPitch(pitch > 0 ? pitch : 1f);
+                speaker.speak(text, TextToSpeech.QUEUE_ADD, null, "line-" + i);
+                speaker.playSilentUtterance(SPEECH_GAP_MS, TextToSpeech.QUEUE_ADD, "gap-" + i);
+                spoken++;
+            }
+            speaker.playSilentUtterance(120, TextToSpeech.QUEUE_ADD, SPEECH_END_ID);
+            if (spoken == 0) {
+                notifySpeechLinesDone(SPEECH_END_ID);
+            }
+        } catch (JSONException e) {
+            notifySpeechLinesDone(SPEECH_END_ID);
+        }
+    }
+
+    /** 按名字挑音色；找不到就保持引擎当前音色 */
+    private void applyVoice(TextToSpeech speaker, String voiceName) {
+        if (speaker == null || voiceName == null || voiceName.isEmpty()) return;
+        try {
+            Set<Voice> voices = speaker.getVoices();
             if (voices == null) return;
             for (Voice voice : voices) {
                 if (voiceName.equals(voice.getName())) {
-                    tts.setVoice(voice);
+                    speaker.setVoice(voice);
                     return;
                 }
             }
         } catch (Exception e) {
             // 引擎不支持 Voice API 时忽略，继续用默认音色
+        }
+    }
+
+    /** 把一个引擎的音色塞进 JSON 数组；网络音色也保留，网页侧标出来 */
+    private void collectVoices(JSONArray out, TextToSpeech speaker, String pkg, String label, boolean isDefault) {
+        if (speaker == null) return;
+        try {
+            Set<Voice> voices = speaker.getVoices();
+            if (voices == null) return;
+            for (Voice voice : voices) {
+                Locale locale = voice.getLocale();
+                if (locale == null) continue;
+                JSONObject item = new JSONObject();
+                item.put("name", voice.getName());
+                item.put("lang", locale.toLanguageTag());
+                item.put("local", !voice.isNetworkConnectionRequired());
+                item.put("engine", pkg == null ? "" : pkg);
+                item.put("label", label == null || label.isEmpty() ? pkg : label);
+                item.put("default", isDefault);
+                out.put(item);
+            }
+        } catch (Exception e) {
+            // 某个引擎读不出 Voice 列表就跳过它
         }
     }
 

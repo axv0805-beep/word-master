@@ -4,7 +4,7 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.14'
+export const APP_VERSION = '1.1.15'
 
 /**
  * 应用内更新检查的地址。
@@ -18,10 +18,11 @@ export interface AndroidSpeechBridge {
   stop(): void
   /**
    * 整段朗读：json 是 [{t: 文本, l: 语言, p: 音高, r: 语速}]。
-   * voiceName 非空时用那把音色，否则用默认英语音色。播完回调 window.__speechLinesDone。
+   * voiceName 可以是「引擎包名::音色名」（用别的引擎，比如小米语音），也可以是空的。
+   * 播完回调 window.__speechLinesDone。
    */
   speakLines?(json: string, rate: number, voiceName?: string): void
-  /** 设备上可用的语音列表，JSON 字符串：[{name, lang, local}] */
+  /** 所有 TTS 引擎的音色，JSON 字符串：[{name, lang, local, engine, label, default}] */
   getVoices?(): string
 }
 

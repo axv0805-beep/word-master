@@ -63,6 +63,25 @@ export interface SpeechVoice {
   lang: string
   /** true = 装在本地，网络语音会慢一些 */
   local: boolean
+  /** 所属 TTS 引擎的包名（例如小米的语音引擎）；网页端为空 */
+  engine?: string
+  /** 引擎在系统里显示的名字 */
+  label?: string
+  /** 是不是系统当前默认引擎的音色 */
+  isDefault?: boolean
+}
+
+/** 设置里存的音色标识：默认引擎直接存音色名，别的引擎存「包名::音色名」 */
+export function voiceStorageKey(voice: SpeechVoice): string {
+  const engine = voice.engine?.trim() ?? ''
+  if (!engine || voice.isDefault) return voice.name
+  return `${engine}::${voice.name}`
+}
+
+/** 从存储值里取出音色名（网页端只需要后半截） */
+function voiceNameOf(storageKey: string): string {
+  const at = storageKey.indexOf('::')
+  return at < 0 ? storageKey : storageKey.slice(at + 2)
 }
 
 /** 列设备上的语音：安卓读原生 TTS 的 Voice 列表，网页读 speechSynthesis */
@@ -77,7 +96,10 @@ export function listSpeechVoices(): SpeechVoice[] {
           .map((item) => ({
             name: String(item.name ?? ''),
             lang: String(item.lang ?? ''),
-            local: item.local !== false
+            local: item.local !== false,
+            engine: String(item.engine ?? ''),
+            label: String(item.label ?? ''),
+            isDefault: item.default === true
           }))
           .filter((voice) => voice.name.length > 0)
       }
@@ -115,7 +137,8 @@ export function pickDefaultSpeechVoice(voices: SpeechVoice[], accent: 'us' | 'uk
   return [...english].sort((a, b) => score(b) - score(a))[0] ?? null
 }
 
-function findVoiceByName(name: string): SpeechSynthesisVoice | undefined {
+function findVoiceByName(storageKey: string): SpeechSynthesisVoice | undefined {
+  const name = voiceNameOf(storageKey)
   if (!name) return undefined
   if (cachedVoices.length === 0) cachedVoices = readVoices()
   return cachedVoices.find((voice) => voice.name === name)

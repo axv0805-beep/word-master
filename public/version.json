@@ -1,8 +1,8 @@
 {
-  "versionCode": 16,
-  "versionName": "1.1.14",
-  "url": "./download/cimiao-1.1.14.apk",
-  "notes": "听力换了个说法：整段材料只用一把嗓子，男女声靠音高区分，不再一句美音一句英音；设置里新增「听力音色」，可以挑你手机里装好的任意英语语音并试听。",
+  "versionCode": 17,
+  "versionName": "1.1.15",
+  "url": "./download/cimiao-1.1.15.apk",
+  "notes": "听力音色现在会列出手机上所有语音引擎（比如小米语音）的音色，网络音色也能选；之前只显示系统默认引擎的那一把，这就是为什么你只看到「自动」和一个 en。",
   "publishedAt": "2026-10-26",
-  "sha256": "1d95514e6c20275774b38e5c75f537c5c50d16f77621e3b6dac0edb59d3259e5"
+  "sha256": "7aaabc4880e18e4803cfaec8593ea282fdacbee33b29558f4a7131782c370eb8"
 }

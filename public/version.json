@@ -1,8 +1,8 @@
 {
-  "versionCode": 22,
-  "versionName": "1.1.20",
-  "url": "https://axv0805-beep.github.io/word-master/download/cimiao-1.1.20.apk",
-  "notes": "改用 GitHub Release 发版：应用内检查更新读的是 Release 里的清单，安装包和清单一起发布，不会再出现「提示有新版但下载 404」；Release 连不上时自动退回站点清单。",
+  "versionCode": 23,
+  "versionName": "1.2.0",
+  "url": "https://axv0805-beep.github.io/word-master/download/cimiao-1.2.0.apk",
+  "notes": "1.2.0：新增 AI 写作批改、单词联想与语境出题（需要在设置里配置自己的模型接口，不配也能用原来的离线功能）；离线侧的听力/写作题库、随机抽题、错题本、TTS 音色和 GitHub Release 更新全部保留。",
   "publishedAt": "2026-10-26",
-  "sha256": "a63aee09d81d06ae641d9e114ef6f99461403dbdbb74ff6ba21d4d950bcd7c7c"
+  "sha256": "5e26da0e7249cafae69ea82f995b14f47608632d947294b64fe5bd15daf7d5ce"
 }

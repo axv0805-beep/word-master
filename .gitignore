@@ -1,5 +1,9 @@
 # 依赖
 node_modules/
+server/data/
+.env
+.env.*
+!.env.example
 
 # 构建产物
 dist/
@@ -8,6 +12,7 @@ dist-ssr/
 
 # 校验截图
 artifacts/
+output/playwright/
 
 # 桌面端打包
 .electron/

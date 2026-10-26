@@ -22,6 +22,7 @@ import {
 import { dateKey, ensureDay, updateDaily, type DailyMap } from '../core/stats'
 import { clampDailyGoal, clampRoundSizeFor } from '../core/constants'
 import type { CustomBook } from '../core/dictionaryLoader'
+import { normalizeDrafts, type WritingDraft, type WritingDrafts } from '../core/writing'
 
 export const DEFAULT_SETTINGS: Settings = {
   bookId: 'cet4',
@@ -50,6 +51,8 @@ export interface AppState {
   rounds: RoundResult[]
   study: StudyState
   customBooks: CustomBook[]
+  writingDrafts: WritingDrafts
+  saveWritingDraft: (key: string, draft: WritingDraft) => void
 
   updateSettings: (patch: Partial<Settings>) => void
   /** 完成首次引导：一次性写入所选词书、每日目标与每轮单词数 */
@@ -148,7 +151,8 @@ export function mergePersistedState(persisted: unknown, current: AppState): AppS
     mistakes: (asRecord(saved.mistakes) as unknown as MistakeMap) ?? {},
     daily: (asRecord(saved.daily) as unknown as DailyMap) ?? {},
     rounds: Array.isArray(saved.rounds) ? (saved.rounds as RoundResult[]) : [],
-    customBooks: Array.isArray(saved.customBooks) ? (saved.customBooks as CustomBook[]) : []
+    customBooks: Array.isArray(saved.customBooks) ? (saved.customBooks as CustomBook[]) : [],
+    writingDrafts: normalizeDrafts(saved.writingDrafts)
   }
 }
 
@@ -162,6 +166,8 @@ export const useAppStore = create<AppState>()(
       rounds: [],
       study: EMPTY_STUDY,
       customBooks: [],
+      writingDrafts: {},
+      saveWritingDraft: (key, draft) => set((state) => ({ writingDrafts: { ...state.writingDrafts, ...normalizeDrafts({ [key]: draft }) } })),
 
       updateSettings: (patch) =>
         set((state) => {
@@ -234,7 +240,7 @@ export const useAppStore = create<AppState>()(
       setCustomBooks: (books) => set({ customBooks: books }),
 
       resetProgress: () =>
-        set({ progress: {}, mistakes: {}, daily: {}, rounds: [], study: EMPTY_STUDY }),
+        set({ progress: {}, mistakes: {}, daily: {}, rounds: [], study: EMPTY_STUDY, writingDrafts: {} }),
 
       resetAll: () =>
         set({
@@ -244,7 +250,8 @@ export const useAppStore = create<AppState>()(
           daily: {},
           rounds: [],
           study: EMPTY_STUDY,
-          customBooks: []
+          customBooks: [],
+          writingDrafts: {}
         })
     }),
     {
@@ -267,7 +274,8 @@ export const useAppStore = create<AppState>()(
         daily: state.daily,
         rounds: state.rounds,
         study: state.study,
-        customBooks: state.customBooks
+        customBooks: state.customBooks,
+        writingDrafts: state.writingDrafts
       })
     }
   )
@@ -319,7 +327,8 @@ export function exportBackup(): string {
       daily: state.daily,
       rounds: state.rounds,
       study: state.study,
-      customBooks: state.customBooks
+      customBooks: state.customBooks,
+      writingDrafts: state.writingDrafts
     },
     null,
     2
@@ -355,7 +364,8 @@ export function importBackup(text: string): ImportResult {
     daily: asRecord(data.daily) as unknown as DailyMap,
     rounds: Array.isArray(data.rounds) ? (data.rounds as RoundResult[]) : [],
     study: (Object.keys(asRecord(data.study)).length > 0 ? data.study : EMPTY_STUDY) as StudyState,
-    customBooks: Array.isArray(data.customBooks) ? (data.customBooks as CustomBook[]) : []
+    customBooks: Array.isArray(data.customBooks) ? (data.customBooks as CustomBook[]) : [],
+    writingDrafts: normalizeDrafts(data.writingDrafts)
   })
 
   return { ok: true, message: `导入成功：${Object.keys(progress).length} 条学习记录已恢复` }

@@ -77,13 +77,14 @@ describe('学习页与四六级听力', () => {
     vi.useRealTimers()
   })
 
-  it('学习页有听力入口，写作还是敬请期待', async () => {
+  it('学习页保留听力入口并提供四、六级 AI 写作', async () => {
     renderAt('/learn')
     await waitFor(() => expect(screen.getByText('四六级听力')).toBeTruthy())
     expect(screen.getByText('四级')).toBeTruthy()
     expect(screen.getByText('六级')).toBeTruthy()
-    expect(screen.getByText('敬请期待')).toBeTruthy()
-    expect(screen.getByText(/作文与翻译的批改正在做/)).toBeTruthy()
+    expect(screen.getByText('四级写作')).toBeTruthy()
+    expect(screen.getByText('六级写作')).toBeTruthy()
+    expect(screen.queryByText('敬请期待')).toBeNull()
   })
 
   it('四级听力页能选专项训练或真题模拟，题量不超过 10 道', async () => {

@@ -12,6 +12,10 @@ import { StudyPage } from './pages/Study'
 import { LearnPage } from './pages/Learn'
 import { ListeningPage } from './pages/Listening'
 import { ListeningSessionPage } from './pages/ListeningSession'
+import { AiWorkspacePage } from './pages/AiWorkspace'
+import { AiAccountPage } from './pages/AiAccount'
+import { AiAdminPage } from './pages/AiAdmin'
+import { AiHistoryPage } from './pages/AiHistory'
 import { OnboardingPage } from './pages/Onboarding'
 import { useAppStore } from './store/appStore'
 import { primeSpeech } from './core/speech'
@@ -82,8 +86,13 @@ export default function App() {
             <Route path="/mistakes" element={<MistakesPage />} />
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/ai" element={<AiAccountPage />} />
+            <Route path="/settings/ai/admin" element={<AiAdminPage />} />
             <Route path="/study" element={<StudyPage />} />
             <Route path="/learn" element={<LearnPage />} />
+            <Route path="/learn/writing/:level" element={<AiWorkspacePage />} />
+            <Route path="/learn/ai/history" element={<AiHistoryPage />} />
+            <Route path="/learn/ai/:feature" element={<AiWorkspacePage />} />
             <Route path="/learn/listening/:level" element={<ListeningPage />} />
             <Route path="/learn/listening/:level/:mode" element={<ListeningSessionPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

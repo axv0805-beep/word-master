@@ -352,7 +352,7 @@ describe('界面渲染冒烟测试', () => {
 
     // 词书已经不是底部 Tab 了，入口留在首页的书名卡片上
     fireEvent.click(screen.getByText('学习'))
-    await waitFor(() => expect(screen.getByText('按考试题型练听力，材料都带原文与解析')).toBeTruthy())
+    await waitFor(() => expect(screen.getByRole('heading', { name: '学习' })).toBeTruthy())
     expect(screen.getByText('四六级听力')).toBeTruthy()
 
     fireEvent.click(screen.getByText('错题'))

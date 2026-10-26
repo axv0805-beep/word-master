@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Icon } from './ui/Icons'
 import { useCorpus } from '../hooks/useCorpus'
 import { analyzeWord } from '../core/wordInsights'
@@ -6,6 +7,10 @@ import { REASON_LABEL } from '../core/confusables'
 import { speakWord } from '../core/speech'
 import { useAppStore } from '../store/appStore'
 import type { DictEntry } from '../core/types'
+
+export function AiWordActions({ word }: { word: string }) {
+  return <div className="ai-word-actions"><Link to={`/learn/ai/association?word=${encodeURIComponent(word)}`}>AI 联想</Link><Link to={`/learn/ai/examples?word=${encodeURIComponent(word)}`}>AI 例句</Link><Link to={`/learn/ai/quiz?word=${encodeURIComponent(word)}`}>围绕这个词出题</Link></div>
+}
 
 /**
  * 答完一题后的「词形变化 + 易混词」卡片。

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui/Icons'
-import { WordInsights } from '../components/WordInsights'
+import { WordInsights, AiWordActions } from '../components/WordInsights'
 import { ProgressBar } from '../components/ui/Widgets'
 import { ProgressRing } from '../components/ui/Charts'
 import { useAppStore } from '../store/appStore'
@@ -413,6 +413,7 @@ function FeedbackView({ result, onNext }: { result: AnswerResult; onNext: () => 
 
       {/* 词形变化与易混词：只在词库里真实存在的词条上展示 */}
       <WordInsights entry={entry} />
+      <AiWordActions word={entry.w} />
 
       <button type="button" className="btn btn-primary btn-lg w-full mt-4" onClick={onNext} autoFocus>
         继续

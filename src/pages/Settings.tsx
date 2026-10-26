@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Icon } from '../components/ui/Icons'
 import { SectionTitle, Segmented, Stepper } from '../components/ui/Widgets'
 import { UpdateProgressView, useUpdateDownload } from '../components/ui/UpdateProgress'
@@ -217,6 +218,8 @@ export function SettingsPage() {
         </p>
       </header>
 
+      <SectionTitle title="AI 学习" />
+      <Link to="/settings/ai" className="card p-4 mb-5 ai-tool-link"><span><strong>AI 账号与服务</strong><small>登录、使用额度与模型接口管理</small></span><Icon name="chevronRight" size={16} /></Link>
       <SectionTitle title="学习计划" />
       <div className="card p-4">
         {plan ? (

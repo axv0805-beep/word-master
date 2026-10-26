@@ -7,6 +7,10 @@
   "description": "词芽 - 手机优先的背单词 Web App（四级/六级/高考/中考）",
   "scripts": {
     "dev": "vite",
+    "server": "node server/index.mjs",
+    "test:server": "node --test server/tests/*.test.mjs",
+    "verify:ai": "npm run test:server && node scripts/verify-ai-ui.mjs",
+    "local": "node scripts/local-dev.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",

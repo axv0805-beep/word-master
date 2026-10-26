@@ -21,7 +21,9 @@
     "package:android": "node scripts/build-android.mjs",
     "publish:android": "node scripts/publish-android.mjs",
     "bump:android": "node scripts/bump-android-version.mjs",
-    "icons": "python scripts/make-icons.py && python scripts/make-android-icons.py"
+    "icons": "python scripts/make-icons.py && python scripts/make-android-icons.py",
+    "release:android": "npm run package:android && node scripts/publish-release.mjs",
+    "release:github": "node scripts/publish-release.mjs"
   },
   "dependencies": {
     "clsx": "2.1.1",

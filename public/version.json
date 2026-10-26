@@ -1,8 +1,8 @@
 {
-  "versionCode": 19,
-  "versionName": "1.1.17",
-  "url": "./download/cimiao-1.1.17.apk",
-  "notes": "写作上线：四级/六级 × 专项训练/真题模拟共 40 道题，每次随机抽一道；写完点「提交批改」会在本地查拼写和语法，按内容/结构/语言打分并说明理由，改完可以看范文。",
+  "versionCode": 20,
+  "versionName": "1.1.18",
+  "url": "./download/cimiao-1.1.18.apk",
+  "notes": "更新改为从 GitHub Release 获取：安装包和版本清单同一次发布，检查更新更快也更稳；下载仍走原来的分段并行与断点续传。",
   "publishedAt": "2026-10-26",
-  "sha256": "2f89abfb9c4ca82888216054bffb45e74709be1f26e15fdd04d839caccf0786f"
+  "sha256": "57eee4b6a506310540e0e1c34b602e97d1c449fe285883f0a710fed0b5997576"
 }

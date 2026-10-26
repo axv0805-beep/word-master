@@ -65,14 +65,15 @@ function readManifest(root = ROOT) {
  */
 export function writeVersionManifest(
   { versionCode, versionName, apkName, notes, publishedAt, sha256 },
-  root = ROOT
+  root = ROOT,
+  { outDir = path.join(root, 'public'), urlPrefix = './download/' } = {}
 ) {
-  const file = path.join(root, 'public', 'version.json')
+  const file = path.join(outDir, 'version.json')
   const previous = readManifest(root)
   const manifest = {
     versionCode,
     versionName,
-    url: `./download/${apkName}`,
+    url: `${urlPrefix}${apkName}`,
     notes: notes || previous?.notes || DEFAULT_NOTES,
     publishedAt: publishedAt || new Date().toISOString().slice(0, 10)
   }
@@ -82,6 +83,13 @@ export function writeVersionManifest(
   fs.writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
   return { file, manifest }
 }
+
+/**
+ * GitHub Release 上的清单地址：`releases/latest/download/` 永远指向最新正式版，
+ * 应用内更新优先读它（见 src/core/native.ts 的 UPDATE_MANIFEST_URL）。
+ */
+export const RELEASE_MANIFEST_URL =
+  'https://github.com/axv0805-beep/word-master/releases/latest/download/version.json'
 
 /**
  * 把构建出来的 APK 发布到 public/download/：

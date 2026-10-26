@@ -60,9 +60,14 @@ public class MainActivity extends Activity {
 
     private static final String START_URL =
             "https://appassets.androidplatform.net/assets/www/index.html";
-    /** 线上版本清单：应用内更新时读取（Java 侧直接请求，避开 WebView 的跨域限制） */
-    private static final String VERSION_URL =
-            "https://axv0805-beep.github.io/word-master/version.json";
+    /**
+     * 线上版本清单：优先读 GitHub Release 里随安装包一起发布的 version.json，
+     * 读不到再退回 gh-pages 上的副本（这样没发过 Release 的老版本也能更新）。
+     */
+    private static final String[] VERSION_URLS = {
+            "https://github.com/axv0805-beep/word-master/releases/latest/download/version.json",
+            "https://axv0805-beep.github.io/word-master/version.json"
+    };
     private static final int BG = Color.parseColor("#F1FAF3");
 
     /** 分段下载：单连接被限速时多开几条连接通常能快不少 */
@@ -453,27 +458,38 @@ public class MainActivity extends Activity {
             }
         }
 
-        @JavascriptInterface
+        /** 拉一段文本；失败返回 null，由调用方决定要不要换下一个地址 */
+    private String fetchText(String url) {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(20000);
+            conn.setInstanceFollowRedirects(true);
+            conn.connect();
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) return null;
+            StringBuilder sb = new StringBuilder();
+            try (InputStream in = conn.getInputStream()) {
+                byte[] buffer = new byte[4096];
+                int read;
+                while ((read = in.read(buffer)) > 0) sb.append(new String(buffer, 0, read, "UTF-8"));
+            }
+            return sb.toString();
+        } catch (Exception ignored) {
+            return null;
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    @JavascriptInterface
         public void checkUpdate() {
             new Thread(() -> {
                 String body = null;
-                try {
-                    HttpURLConnection conn = (HttpURLConnection) new URL(VERSION_URL).openConnection();
-                    conn.setConnectTimeout(15000);
-                    conn.setReadTimeout(20000);
-                    conn.connect();
-                    if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                        throw new IllegalStateException("HTTP " + conn.getResponseCode());
-                    }
-                    StringBuilder sb = new StringBuilder();
-                    try (InputStream in = conn.getInputStream()) {
-                        byte[] buffer = new byte[4096];
-                        int read;
-                        while ((read = in.read(buffer)) > 0) sb.append(new String(buffer, 0, read, "UTF-8"));
-                    }
-                    body = sb.toString();
-                } catch (Exception ignored) {
-                    // 落到下面的错误回调
+                for (String manifestUrl : VERSION_URLS) {
+                    body = fetchText(manifestUrl);
+                    if (body != null && body.contains("versionCode")) break;
+                    body = null;
                 }
 
                 if (body == null) {

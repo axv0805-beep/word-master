@@ -1,6 +1,8 @@
 # AI 本地版本
 
-本次在 1.1.13 上增加统一的多厂商 AI 服务与学习界面。原有背词、听力和本地存档继续可独立运行；AI 生成需要后台和已配置的模型服务。
+本次在 1.1.13 上增加统一的多厂商 AI 服务与学习界面，现已合并作者至 1.1.20（030e49a）的更新，包含扩充听力题库、听力错题、离线写作题库及批改、TTS 音色和 Release 更新流程。原有背词、听力、离线写作和本地存档继续可独立运行；AI 生成需要后台和已配置的模型服务。
+
+离线写作使用 `/learn/writing/:level`，AI 写作使用 `/learn/ai/writing/:level`。学习页分别提供入口，离线写作分类页也可进入 AI 写作；双方存档字段均保留并参与导入导出。仓库内作者发布的 APK 不包含本地 AI 改动，安装合并版仍需重新打包。
 
 ## 启动
 
@@ -97,6 +99,6 @@ AI 浏览器验收使用内存数据库和随机临时凭证，启动本地模�
 - `server/app.mjs`：账号、配置、额度、生成记录与 HTTP API。
 - `server/tasks.mjs`：四项任务的输入、提示词与结果校验。
 - `src/pages/Ai*.tsx`：账号、管理、学习与生成历史。
-- `src/core/ai.ts`：前端服务请求与类型；`src/core/writing.ts`：草稿与计时。
+- `src/core/ai.ts`：前端服务请求与类型；`src/core/aiWriting.ts`：AI 草稿与计时；`src/core/writing.ts` 保留作者的离线写作类型。
 
 接入依据：[DeepSeek](https://api-docs.deepseek.com/)、[OpenAI](https://developers.openai.com/api/docs/guides/structured-outputs)、[Claude](https://platform.claude.com/docs/en/api/messages)、[Gemini](https://ai.google.dev/api/generate-content)、[阿里云 Base URL](https://www.alibabacloud.com/help/zh/model-studio/base-url)。

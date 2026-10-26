@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import App from '../App'
 import { DEFAULT_SETTINGS, useAppStore } from '../store/appStore'
 import { useSessionStore } from '../store/session'
-import { APP_VERSION, UPDATE_MANIFEST_URL, onUpdateProgress } from '../core/native'
+import { APP_VERSION, onUpdateProgress, resolveManifestUrl } from '../core/native'
 import type { UpdateProgress } from '../core/native'
 
 type NativeWindow = {
@@ -146,7 +146,7 @@ describe('设置页更新下载进度', () => {
 
     clickButton('立即更新')
     expect(installUpdate).toHaveBeenCalledWith(
-      new URL('./download/cimiao-1.1.6.apk', UPDATE_MANIFEST_URL).href,
+      resolveManifestUrl('./download/cimiao-1.1.6.apk'),
       SHA256
     )
 
@@ -204,7 +204,7 @@ describe('设置页更新下载进度', () => {
 
     clickButton('继续下载')
     expect(installUpdate).toHaveBeenCalledWith(
-      new URL('./download/cimiao-1.1.6.apk', UPDATE_MANIFEST_URL).href,
+      resolveManifestUrl('./download/cimiao-1.1.6.apk'),
       SHA256
     )
     await waitFor(() => expect(screen.getByText('正在下载安装包')).toBeTruthy())

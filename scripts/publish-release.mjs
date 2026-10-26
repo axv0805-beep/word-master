@@ -19,6 +19,7 @@ import path from 'node:path'
 import {
   DEFAULT_NOTES,
   ROOT,
+  RELEASE_DOWNLOAD_BASE,
   RELEASE_MANIFEST_URL,
   publishApk,
   readAndroidVersion,
@@ -97,7 +98,7 @@ const { file: manifestFile, manifest } = writeVersionManifest(
     sha256
   },
   ROOT,
-  { outDir: stageDir, urlPrefix: './' }
+  { outDir: stageDir, urlBase: RELEASE_DOWNLOAD_BASE }
 )
 
 // 站点上的副本保持同步，方便还在读 gh-pages 的老版本

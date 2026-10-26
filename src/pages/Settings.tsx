@@ -11,7 +11,7 @@ import { MIN_ROUND_SIZE, ROUND_SIZE_STEP, maxRoundSizeFor } from '../core/consta
 import { buildStudyPlan, formatFinishDate } from '../core/plan'
 import { THEMES, themeById } from '../core/theme'
 import type { MistakeReplayMode, QuestionType } from '../core/types'
-import { APP_VERSION, UPDATE_MANIFEST_URL, isNativeShell, nativeApp, requestUpdateCheck } from '../core/native'
+import { APP_VERSION, isNativeShell, nativeApp, requestUpdateCheck, resolveManifestUrl } from '../core/native'
 import {
   listSpeechVoices,
   primeSpeech,
@@ -208,7 +208,7 @@ export function SettingsPage() {
             notes?: string
             sha256?: string
           }
-          setUpdate({ ...info, url: new URL(info.url, UPDATE_MANIFEST_URL).href })
+          setUpdate({ ...info, url: resolveManifestUrl(info.url) })
           // 缓存里还留着下到一半的片段时不要清掉：那正是「下载已暂停」要提示的东西
           if (updateJob?.phase !== 'paused') resetDownload()
           showToast(`发现新版本 v${info.versionName}`)

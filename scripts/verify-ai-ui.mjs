@@ -82,6 +82,17 @@ try {
   console.log('PASS: administrator setup, provider save, model discovery, publish and connection test')
 
   await page.goto(base + '/#/learn')
+  // Both writing flows must remain reachable after merging the author's offline writing module.
+  await page.goto(base + '/#/learn/writing/cet4')
+  await page.getByRole('heading', { name: '四级写作', exact: true }).waitFor()
+  await page.getByRole('button', { name: /专项训练/ }).click()
+  await page.getByLabel('作文正文').fill('Reading every day helps me understand the world. I enjoy learning about new places and sharing ideas with my friends. It is a important habit that everyone can develop with practice.')
+  await page.getByRole('button', { name: '提交批改', exact: true }).click()
+  await page.getByText('本次得分', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '查看范文', exact: true }).click()
+  await page.getByText('参考范文', { exact: true }).waitFor()
+  console.log('PASS: merged offline writing task, local grading and model essay routes')
+  await page.goto(base + '/#/learn')
   await page.getByRole('button', { name: '四级 AI 写作', exact: true }).click()
   await page.getByRole('combobox', { name: '学习级别' }).click()
   await page.getByRole('dialog').evaluate(async (element) => { await Promise.all(element.getAnimations().map((a) => a.finished)) })

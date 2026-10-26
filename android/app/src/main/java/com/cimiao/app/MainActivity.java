@@ -462,9 +462,13 @@ public class MainActivity extends Activity {
     private String fetchText(String url) {
         HttpURLConnection conn = null;
         try {
-            conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(20000);
+            // 清单走的是 releases/latest/download 的跳转，边缘节点会缓存几十秒；
+            // 带个时间戳参数就不会读到上一版的清单
+            String target = url + (url.contains("?") ? "&" : "?") + "t=" + System.currentTimeMillis();
+            conn = (HttpURLConnection) new URL(target).openConnection();
+            // Release 在国内偶尔连不通，超时短一点才能快点退回 gh-pages
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(12000);
             conn.setInstanceFollowRedirects(true);
             conn.connect();
             if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) return null;

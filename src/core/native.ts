@@ -4,7 +4,7 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.18'
+export const APP_VERSION = '1.1.20'
 
 /**
  * 应用内更新检查的地址：GitHub Release 里随安装包一起上传的 version.json。
@@ -14,6 +14,19 @@ export const APP_VERSION = '1.1.18'
  */
 export const UPDATE_MANIFEST_URL =
   'https://github.com/axv0805-beep/word-master/releases/latest/download/version.json'
+
+/** gh-pages 上的备用清单：安卓端读不到 Release 清单时会退回这里 */
+export const LEGACY_MANIFEST_URL = 'https://axv0805-beep.github.io/word-master/version.json'
+
+/**
+ * 把清单里的 url 补成绝对地址。
+ * 新清单（发到 Release）里写的是绝对地址；老清单（gh-pages）里写的是 ./download/xxx.apk，
+ * 那种相对路径要相对 gh-pages 解析，不能拿 Release 地址去拼。
+ */
+export function resolveManifestUrl(url: string, base = UPDATE_MANIFEST_URL): string {
+  const isPagesPath = url.startsWith('./download/') || url.startsWith('download/')
+  return new URL(url, isPagesPath ? LEGACY_MANIFEST_URL : base).href
+}
 
 export interface AndroidSpeechBridge {
   speak(text: string, lang: string, rate: number): void

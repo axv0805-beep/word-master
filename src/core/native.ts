@@ -4,20 +4,28 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.13'
+export const APP_VERSION = '1.1.18'
 
 /**
- * 应用内更新检查的地址。
- * 安卓壳里页面来自本地 assets，所以不能读相对路径的 version.json（那是它自己的版本），
- * 必须去线上站点读；仓库改名/迁移时同步改这里。
+ * 应用内更新检查的地址：GitHub Release 里随安装包一起上传的 version.json。
+ * `releases/latest/download/` 永远指向最新一次正式发布，所以地址不用跟着版本变。
+ * 安卓壳优先读它，读不到再退回 gh-pages 上的副本（见 MainActivity.VERSION_URLS）；
+ * 网页端也用它把相对 url 补成绝对地址。
  */
-export const UPDATE_MANIFEST_URL = 'https://axv0805-beep.github.io/word-master/version.json'
+export const UPDATE_MANIFEST_URL =
+  'https://github.com/axv0805-beep/word-master/releases/latest/download/version.json'
 
 export interface AndroidSpeechBridge {
   speak(text: string, lang: string, rate: number): void
   stop(): void
-  /** 整段朗读：json 是 [{t: 文本, l: 语言}]，播完回调 window.__speechLinesDone */
-  speakLines?(json: string, rate: number): void
+  /**
+   * 整段朗读：json 是 [{t: 文本, l: 语言, p: 音高, r: 语速}]。
+   * voiceName 可以是「引擎包名::音色名」（用别的引擎，比如小米语音），也可以是空的。
+   * 播完回调 window.__speechLinesDone。
+   */
+  speakLines?(json: string, rate: number, voiceName?: string): void
+  /** 所有 TTS 引擎的音色，JSON 字符串：[{name, lang, local, engine, label, default}] */
+  getVoices?(): string
 }
 
 export interface AndroidAppBridge {

@@ -82,7 +82,7 @@ try {
   console.log('PASS: administrator setup, provider save, model discovery, publish and connection test')
 
   await page.goto(base + '/#/learn')
-  await page.getByRole('button', { name: /四级写作/ }).click()
+  await page.getByRole('button', { name: '四级 AI 写作', exact: true }).click()
   await page.getByRole('combobox', { name: '学习级别' }).click()
   await page.getByRole('dialog').evaluate(async (element) => { await Promise.all(element.getAnimations().map((a) => a.finished)) })
   await page.screenshot({ path: path.join(out, 'ai-level-picker.png') })

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { AI_LABELS, aiRequest, aiToken, countEssayWords, type AiFeature, type AiModel, type AiResult, type AiUser } from '../core/ai'
-import { writingElapsed, type WritingDraft } from '../core/writing'
+import { writingElapsed, type WritingDraft } from '../core/aiWriting'
 import { useAppStore } from '../store/appStore'
 import { AiResultView } from '../components/AiResult'
 import { AppSelect } from '../components/ui/AppSelect'

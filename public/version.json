@@ -1,8 +1,8 @@
 {
-  "versionCode": 15,
-  "versionName": "1.1.13",
-  "url": "./download/cimiao-1.1.13.apk",
-  "notes": "底部导航的「词书」换成了「学习」：听力分四级和六级，每级都有专项训练和真题模拟，材料是原创仿真题，用系统语音朗读，答完直接给解析和原文。写作区还在做，先挂了「敬请期待」。词书入口挪到了首页的书名卡片和设置页。",
+  "versionCode": 20,
+  "versionName": "1.1.18",
+  "url": "./download/cimiao-1.1.18.apk",
+  "notes": "更新改为从 GitHub Release 获取：安装包和版本清单同一次发布，检查更新更快也更稳；下载仍走原来的分段并行与断点续传。",
   "publishedAt": "2026-10-26",
-  "sha256": "3e3e28e32e67fe017275b2cdf9a7397368bb0f258471cc46778000ffb2eef878"
+  "sha256": "57eee4b6a506310540e0e1c34b602e97d1c449fe285883f0a710fed0b5997576"
 }

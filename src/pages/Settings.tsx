@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../components/ui/Icons'
 import { SectionTitle, Segmented, Stepper } from '../components/ui/Widgets'
@@ -12,6 +12,14 @@ import { buildStudyPlan, formatFinishDate } from '../core/plan'
 import { THEMES, themeById } from '../core/theme'
 import type { MistakeReplayMode, QuestionType } from '../core/types'
 import { APP_VERSION, UPDATE_MANIFEST_URL, isNativeShell, nativeApp, requestUpdateCheck } from '../core/native'
+import {
+  listSpeechVoices,
+  primeSpeech,
+  speakLines,
+  stopSpeaking,
+  voiceStorageKey,
+  type SpeechVoice
+} from '../core/speech'
 
 const QUESTION_TYPES: Array<{ value: QuestionType; label: string; hint: string }> = [
   { value: 'zh2en', label: '看中选英', hint: '给中文意思，选英文单词 4 选 1' },
@@ -105,6 +113,70 @@ export function SettingsPage() {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [confirmReset, setConfirmReset] = useState<'progress' | 'all' | null>(null)
   const app = nativeApp()
+  const [voices, setVoices] = useState<SpeechVoice[]>([])
+  const [voiceTrying, setVoiceTrying] = useState(false)
+
+  // 语音列表：安卓壳一次就拿到；浏览器要等 voiceschanged，所以多试几次
+  useEffect(() => {
+    primeSpeech()
+    let alive = true
+    let tries = 0
+    const load = () => {
+      if (!alive) return
+      const all = listSpeechVoices()
+      // 英语排前面（听力材料是英语），同语言里本地音色优先，网络音色垫后
+      const list = [...all].sort((a, b) => {
+        const aEn = /^en([-_]|$)/i.test(a.lang) ? 0 : 1
+        const bEn = /^en([-_]|$)/i.test(b.lang) ? 0 : 1
+        if (aEn !== bEn) return aEn - bEn
+        if (a.local !== b.local) return a.local ? -1 : 1
+        return String(a.label ?? '').localeCompare(String(b.label ?? ''))
+      })
+      if (list.length > 0 || tries >= 6) {
+        setVoices(list)
+        return
+      }
+      tries += 1
+      timer = window.setTimeout(load, 250)
+    }
+    let timer = window.setTimeout(load, 0)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+  }, [])
+
+  // 按引擎分组，顺便标出引擎名（比如「小米语音」），方便用户认出自己装的那个
+  const groupedVoices = useMemo(() => {
+    const groups = new Map<string, SpeechVoice[]>()
+    for (const voice of voices) {
+      const label = voice.label?.trim() || (voice.engine ? voice.engine : '系统语音')
+      const list = groups.get(label)
+      if (list) list.push(voice)
+      else groups.set(label, [voice])
+    }
+    return [...groups.entries()].map(([label, list]) => ({ label, voices: list }))
+  }, [voices])
+
+  const tryVoice = () => {
+    if (voiceTrying) {
+      stopSpeaking()
+      setVoiceTrying(false)
+      return
+    }
+    setVoiceTrying(true)
+    const handle = speakLines(
+      [
+        { text: 'Good morning. The library closes at nine on weekdays.', accent: 'us', pitch: 0.94, rate: 0.98 },
+        { text: 'Thanks. I will come back before then.', accent: 'us', pitch: 1.06, rate: 0.96 }
+      ],
+      { voiceName: settings.speechVoice, rate: 0.92 }
+    )
+    void handle.done.then((ok) => {
+      setVoiceTrying(false)
+      if (!ok) showToast('这台设备的语音合成好像不可用', 'error')
+    })
+  }
   const [checking, setChecking] = useState(false)
   const [update, setUpdate] = useState<{
     versionCode: number
@@ -390,6 +462,44 @@ export function SettingsPage() {
             value={settings.accent}
             onChange={(value) => updateSettings({ accent: value })}
           />
+        </Row>
+        <Row
+          title="听力音色"
+          hint={
+            voices.length > 0
+              ? '列出手机上所有语音引擎的音色，英语优先；男声/女声只靠音高区分'
+              : '这台设备没读到任何语音，会用系统默认音色朗读'
+          }
+          stacked
+        >
+          <div className="flex items-center gap-2">
+            <select
+              className="voice-select"
+              aria-label="听力音色"
+              value={settings.speechVoice}
+              onChange={(event) => updateSettings({ speechVoice: event.target.value })}
+            >
+              <option value="">自动（挑最自然的英语音色）</option>
+              {groupedVoices.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.voices.map((voice) => (
+                    <option key={`${group.label}-${voice.name}`} value={voiceStorageKey(voice)}>
+                      {voice.name} · {voice.lang}
+                      {voice.local ? '' : '（网络）'}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-soft btn-sm shrink-0"
+              onClick={tryVoice}
+              disabled={voices.length === 0 && !app}
+            >
+              {voiceTrying ? '停止' : '试听'}
+            </button>
+          </div>
         </Row>
         <Row title="拼写题显示音标" hint="降低拼写难度，适合初学">
           <Toggle

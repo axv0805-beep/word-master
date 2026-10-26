@@ -30,6 +30,10 @@ export interface ListeningItem {
   explain: string
   /** 整段材料的中文大意，答题后展开 */
   summary: string
+  /** 真题模拟题的对应场次（仿真标注：材料按该场次题型重写，非真题原文） */
+  source?: string
+  /** 对应年份，方便按年份区间浏览 */
+  year?: number
 }
 
 export interface ListeningSet {

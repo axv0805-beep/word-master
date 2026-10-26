@@ -55,6 +55,106 @@ function pickVoice(accent: 'us' | 'uk'): SpeechSynthesisVoice | undefined {
   return cachedVoices.find((voice) => voice.lang?.toLowerCase().startsWith('en'))
 }
 
+/** 设备上可用的语音（原生壳与浏览器统一成这个形状） */
+export interface SpeechVoice {
+  /** 传给系统的语音名，也是持久化用的标识 */
+  name: string
+  /** BCP-47 语言标签，例如 en-US / en-GB */
+  lang: string
+  /** true = 装在本地，网络语音会慢一些 */
+  local: boolean
+  /** 所属 TTS 引擎的包名（例如小米的语音引擎）；网页端为空 */
+  engine?: string
+  /** 引擎在系统里显示的名字 */
+  label?: string
+  /** 是不是系统当前默认引擎的音色 */
+  isDefault?: boolean
+}
+
+/** 设置里存的音色标识：默认引擎直接存音色名，别的引擎存「包名::音色名」 */
+export function voiceStorageKey(voice: SpeechVoice): string {
+  const engine = voice.engine?.trim() ?? ''
+  if (!engine || voice.isDefault) return voice.name
+  return `${engine}::${voice.name}`
+}
+
+/** 从存储值里取出音色名（网页端只需要后半截） */
+function voiceNameOf(storageKey: string): string {
+  const at = storageKey.indexOf('::')
+  return at < 0 ? storageKey : storageKey.slice(at + 2)
+}
+
+/** 列设备上的语音：安卓读原生 TTS 的 Voice 列表，网页读 speechSynthesis */
+export function listSpeechVoices(): SpeechVoice[] {
+  const bridge = androidSpeech()
+  if (bridge?.getVoices) {
+    try {
+      const parsed: unknown = JSON.parse(bridge.getVoices())
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+          .map((item) => ({
+            name: String(item.name ?? ''),
+            lang: String(item.lang ?? ''),
+            local: item.local !== false,
+            engine: String(item.engine ?? ''),
+            label: String(item.label ?? ''),
+            isDefault: item.default === true
+          }))
+          .filter((voice) => voice.name.length > 0)
+      }
+    } catch {
+      /* 解析失败就当没有列表，回退到网页侧 */
+    }
+  }
+  if (!isSpeechSupported()) return []
+  return readVoices().map((voice) => ({
+    name: voice.name,
+    lang: voice.lang ?? '',
+    local: voice.localService !== false
+  }))
+}
+
+const NATURAL_HINTS = ['neural', 'natural', 'google', 'microsoft', 'enhanced', 'premium', 'siri']
+const POOR_HINTS = ['compact', 'classic', 'espeak', 'pico']
+
+/** 自动挑一个尽量自然的英语语音：口音对得上、本地、名字里带 neural/natural 的优先 */
+export function pickDefaultSpeechVoice(voices: SpeechVoice[], accent: 'us' | 'uk' = 'us'): SpeechVoice | null {
+  const english = voices.filter((voice) => /^en([-_]|$)/i.test(voice.lang))
+  if (english.length === 0) return null
+  const wanted = accent === 'uk' ? 'en-gb' : 'en-us'
+  const score = (voice: SpeechVoice): number => {
+    const tag = voice.lang.replace('_', '-').toLowerCase()
+    const name = voice.name.toLowerCase()
+    let value = 0
+    if (tag === wanted) value += 4
+    else if (tag.startsWith('en')) value += 1
+    if (voice.local) value += 2
+    if (NATURAL_HINTS.some((hint) => name.includes(hint))) value += 3
+    if (POOR_HINTS.some((hint) => name.includes(hint))) value -= 3
+    return value
+  }
+  return [...english].sort((a, b) => score(b) - score(a))[0] ?? null
+}
+
+function findVoiceByName(storageKey: string): SpeechSynthesisVoice | undefined {
+  const name = voiceNameOf(storageKey)
+  if (!name) return undefined
+  if (cachedVoices.length === 0) cachedVoices = readVoices()
+  return cachedVoices.find((voice) => voice.name === name)
+}
+
+/** 整段听力材料只用一把嗓子：优先第一句的美音，退而求其次用任意一个自然音色 */
+function pickDefaultVoiceForLines(lines: { accent: 'us' | 'uk' }[]): SpeechSynthesisVoice | undefined {
+  const accent = lines[0]?.accent ?? 'us'
+  const best = pickDefaultSpeechVoice(listSpeechVoices(), accent)
+  if (best) {
+    const matched = findVoiceByName(best.name)
+    if (matched) return matched
+  }
+  return pickVoice(accent)
+}
+
 /** 系统语音合成；返回 Promise 便于拼读时按顺序朗读 */
 export function speakWithTts(text: string, accent: 'us' | 'uk', rate = 0.9): Promise<void> {
   return new Promise((resolve) => {
@@ -188,10 +288,19 @@ export async function spellWord(word: string, options: SpeakOptions): Promise<vo
 
 export interface SpeechLine {
   text: string
-  /** 美音 / 英音，用来区分两个说话人 */
+  /** 美音 / 英音；没选具体语音时用它挑音色 */
   accent: 'us' | 'uk'
-  /** 音高，只在 Web Speech 生效；原生侧靠英音/美音区分角色 */
+  /** 音高，两个说话人只做轻微区分（0.94 / 1.06），太夸张会显得怪 */
   pitch?: number
+  /** 这一句的语速，默认沿用整体语速 */
+  rate?: number
+}
+
+export interface SpeakLinesOptions {
+  /** 整体语速 */
+  rate?: number
+  /** 指定语音名（设置页里选的）；空则自动挑一个自然的英语语音 */
+  voiceName?: string
 }
 
 export interface SpeechHandle {
@@ -219,8 +328,9 @@ function estimateDuration(lines: { text: string }[]): number {
  * 原生侧把整段丢给 TextToSpeech 用 QUEUE_ADD 排队，句子之间插静音，避免叠在一起；
  * 网页侧用 speechSynthesis 的队列，最后一句话的 onend 视为播完。
  */
-export function speakLines(lines: SpeechLine[], options: { rate?: number } = {}): SpeechHandle {
+export function speakLines(lines: SpeechLine[], options: SpeakLinesOptions = {}): SpeechHandle {
   const rate = options.rate ?? 0.94
+  const voiceName = options.voiceName?.trim() ?? ''
   const cleaned = lines.map((line) => ({ ...line, text: line.text.trim() })).filter((line) => line.text.length > 0)
 
   if (cleaned.length === 0) {
@@ -240,8 +350,16 @@ export function speakLines(lines: SpeechLine[], options: { rate?: number } = {})
       nativeLinesDone = settle
       try {
         bridge.speakLines!(
-          JSON.stringify(cleaned.map((line) => ({ t: line.text, l: line.accent === 'uk' ? 'en-GB' : 'en-US' }))),
-          rate
+          JSON.stringify(
+            cleaned.map((line) => ({
+              t: line.text,
+              l: line.accent === 'uk' ? 'en-GB' : 'en-US',
+              p: line.pitch ?? 1,
+              r: line.rate ?? rate
+            }))
+          ),
+          rate,
+          voiceName
         )
       } catch {
         settle(false)
@@ -268,14 +386,15 @@ export function speakLines(lines: SpeechLine[], options: { rate?: number } = {})
   const done = new Promise<boolean>((resolve) => {
     try {
       synth.cancel()
+      // 指定了音色就用它，否则自动挑一个自然的英语语音（同一段材料只用一把嗓子）
+      const chosen = findVoiceByName(voiceName) ?? pickDefaultVoiceForLines(cleaned)
       const utterances: SpeechSynthesisUtterance[] = []
       cleaned.forEach((line, index) => {
         const utterance = new SpeechSynthesisUtterance(line.text)
-        utterance.lang = line.accent === 'uk' ? 'en-GB' : 'en-US'
-        utterance.rate = rate
+        utterance.lang = chosen?.lang || (line.accent === 'uk' ? 'en-GB' : 'en-US')
+        utterance.rate = line.rate ?? rate
         utterance.pitch = line.pitch ?? 1
-        const voice = pickVoice(line.accent)
-        if (voice) utterance.voice = voice
+        if (chosen) utterance.voice = chosen
         if (index === cleaned.length - 1) {
           utterance.onend = () => resolve(!cancelled)
           utterance.onerror = () => resolve(false)

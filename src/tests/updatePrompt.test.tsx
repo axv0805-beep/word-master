@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { UpdatePrompt } from '../components/UpdatePrompt'
-import { APP_VERSION } from '../core/native'
+import { APP_VERSION, UPDATE_MANIFEST_URL } from '../core/native'
 import type { UpdateProgress } from '../core/native'
 import { readUpdatePrefs, resetUpdatePrefs, writeUpdatePrefs } from '../core/updatePrefs'
 import { resetUpdateCheckCache } from '../hooks/useUpdateCheck'
@@ -131,7 +131,7 @@ describe('启动时的新版本提醒', () => {
 
     clickButton('立即更新')
     expect(installUpdate).toHaveBeenCalledWith(
-      new URL('./download/cimiao-1.2.0.apk', 'https://axv0805-beep.github.io/word-master/version.json').href,
+      new URL('./download/cimiao-1.2.0.apk', UPDATE_MANIFEST_URL).href,
       SHA256
     )
 

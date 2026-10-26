@@ -91,6 +91,8 @@ export interface Settings {
   accent: 'us' | 'uk'
   /** 优先使用在线真人发音（失败回退系统语音） */
   onlineAudio: boolean
+  /** 听力材料用哪个系统语音朗读；空字符串 = 自动挑一个自然的美音 */
+  speechVoice: string
   dailyGoal: number
   theme: ThemeId
   /** 拼写题是否显示音标提示 */
@@ -182,6 +184,39 @@ export interface RoundResult {
   wrongWords: string[]
   /** 本轮覆盖的词（去重） */
   words: string[]
+}
+
+/** 听力错题：一条 = 一道听力题的最近一次答错记录 */
+export interface ListeningMistake {
+  /** `${level}:${mode}:${itemId}` */
+  key: string
+  level: 'cet4' | 'cet6'
+  mode: 'drill' | 'mock'
+  itemId: string
+  section: string
+  /** 真题模拟题的场次标注（仿真） */
+  source?: string
+  stem: string
+  options: string[]
+  /** 最近一次选错的下标 */
+  chosen: number
+  /** 正确下标 */
+  answer: number
+  /** 累计答错次数 */
+  wrong: number
+  lastWrongAt: number
+}
+
+/** 写作练习记录：一条 = 一次交卷的得分 */
+export interface WritingRecord {
+  taskId: string
+  level: 'cet4' | 'cet6'
+  mode: 'drill' | 'mock'
+  title: string
+  score: number
+  band: string
+  words: number
+  at: number
 }
 
 /** 每日练习痕迹 */

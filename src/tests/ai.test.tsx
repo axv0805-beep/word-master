@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AiWorkspacePage } from '../pages/AiWorkspace'
 import { AiResultView } from '../components/AiResult'
 import { countEssayWords } from '../core/ai'
-import { normalizeDrafts, writingElapsed } from '../core/writing'
+import { normalizeDrafts, writingElapsed } from '../core/aiWriting'
 import { exportBackup, importBackup, mergePersistedState, useAppStore } from '../store/appStore'
 
 describe('AI learning flows', () => {
@@ -33,7 +33,7 @@ describe('AI learning flows', () => {
       const body = route.endsWith('/models') ? { models: [{ providerId: 'p1', providerName: 'DeepSeek', model: 'fixture-model' }] } : route.endsWith('/auth/me') ? { user: { id: 'learner', username: 'learner', role: 'user', dailyLimit: 20 } } : { id: 'result1', status: 'done', result }
       return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
     })
-    render(<MemoryRouter initialEntries={['/learn/writing/cet4']}><Routes><Route path="/learn/writing/:level" element={<AiWorkspacePage />} /></Routes></MemoryRouter>)
+    render(<MemoryRouter initialEntries={['/learn/ai/writing/cet4']}><Routes><Route path="/learn/ai/writing/:level" element={<AiWorkspacePage />} /></Routes></MemoryRouter>)
     await waitFor(() => expect(screen.getByRole('button', { name: '提交 AI 批改' }).hasAttribute('disabled')).toBe(false))
     fireEvent.change(screen.getByLabelText('题目与要求'), { target: { value: 'Reading every day' } })
     const essay = 'Reading every day helps me learn about the world.'

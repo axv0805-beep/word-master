@@ -1,8 +1,8 @@
 {
-  "versionCode": 17,
-  "versionName": "1.1.15",
-  "url": "./download/cimiao-1.1.15.apk",
-  "notes": "听力音色现在会列出手机上所有语音引擎（比如小米语音）的音色，网络音色也能选；之前只显示系统默认引擎的那一把，这就是为什么你只看到「自动」和一个 en。",
+  "versionCode": 18,
+  "versionName": "1.1.16",
+  "url": "./download/cimiao-1.1.16.apk",
+  "notes": "听力题库扩到 104 道（四级/六级 × 专项训练/真题模拟），每轮从没抽过的题里随机抽 6 道，抽完自动重来；答错的听力题会进「错题 → 听力」，带题干、场次和正确答案。",
   "publishedAt": "2026-10-26",
-  "sha256": "7aaabc4880e18e4803cfaec8593ea282fdacbee33b29558f4a7131782c370eb8"
+  "sha256": "066f613cae3e637e1279558ca3af083a1cd4362e73ba5e9c46e669ff2141ccd4"
 }

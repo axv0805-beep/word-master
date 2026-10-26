@@ -4,7 +4,7 @@
  */
 
 /** 网页端展示的版本号（安卓壳里以 APK 的实际版本为准） */
-export const APP_VERSION = '1.1.20'
+export const APP_VERSION = '1.2.0'
 
 /**
  * 应用内更新检查的地址：GitHub Release 里随安装包一起上传的 version.json。

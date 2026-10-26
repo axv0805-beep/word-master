@@ -1,8 +1,8 @@
 {
-  "versionCode": 18,
-  "versionName": "1.1.16",
-  "url": "./download/cimiao-1.1.16.apk",
-  "notes": "听力题库扩到 104 道（四级/六级 × 专项训练/真题模拟），每轮从没抽过的题里随机抽 6 道，抽完自动重来；答错的听力题会进「错题 → 听力」，带题干、场次和正确答案。",
+  "versionCode": 19,
+  "versionName": "1.1.17",
+  "url": "./download/cimiao-1.1.17.apk",
+  "notes": "写作上线：四级/六级 × 专项训练/真题模拟共 40 道题，每次随机抽一道；写完点「提交批改」会在本地查拼写和语法，按内容/结构/语言打分并说明理由，改完可以看范文。",
   "publishedAt": "2026-10-26",
-  "sha256": "066f613cae3e637e1279558ca3af083a1cd4362e73ba5e9c46e669ff2141ccd4"
+  "sha256": "2f89abfb9c4ca82888216054bffb45e74709be1f26e15fdd04d839caccf0786f"
 }

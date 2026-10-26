@@ -1,12 +1,17 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../components/ui/Icons'
 import { SectionTitle } from '../components/ui/Widgets'
-import { getListeningSet, isListeningLevel } from '../data/listening'
-import { LEVEL_LABEL, MODE_LABEL, gradeHint, type ListeningMode } from '../core/listening'
+import { getListeningPoolInfo, isListeningLevel } from '../data/listening'
+import { LEVEL_LABEL, MODE_LABEL, type ListeningMode } from '../core/listening'
 
 const MODE_HINT: Record<ListeningMode, string> = {
   drill: '一题一段，逐题精听，适合先熟悉题型',
   mock: '材料更长、更接近整套题，建议一次做完'
+}
+
+const MODE_SOURCE: Record<ListeningMode, string> = {
+  drill: '题库题：按四六级题型重写，题材覆盖短对话到新闻',
+  mock: '往年场次仿真：2016–2026 各场次的题型与篇幅'
 }
 
 /** 某个级别的听力分类页：专项训练 / 真题模拟 */
@@ -50,7 +55,7 @@ export function ListeningPage() {
 
       <SectionTitle title="选择练习方式" />
       {(['drill', 'mock'] as const).map((mode) => {
-        const set = getListeningSet(level, mode)
+        const info = getListeningPoolInfo(level, mode)
         return (
           <button
             key={mode}
@@ -64,10 +69,12 @@ export function ListeningPage() {
             <span className="min-w-0 flex-1 text-left">
               <span className="listen-mode__title">
                 {MODE_LABEL[mode]}
-                <span className="listen-mode__caption">{set.caption}</span>
+                <span className="listen-mode__caption">
+                  {info.total} 道题 · 每轮随机 {info.roundSize} 道 · 约 {info.minutes} 分钟
+                </span>
               </span>
               <span className="listen-mode__hint">{MODE_HINT[mode]}</span>
-              <span className="listen-mode__grade">{gradeHint(level, mode)}</span>
+              <span className="listen-mode__grade">{MODE_SOURCE[mode]}</span>
             </span>
             <Icon name="chevronRight" size={15} strokeWidth={2.2} />
           </button>
@@ -75,7 +82,10 @@ export function ListeningPage() {
       })}
 
       <p className="listen-note">
-        音频由系统语音合成朗读：男声女声只用音高区分，连点会打断重播。听不清可以先看原文，再回来挑战一次。
+        每次从题库里随机抽 6 道，抽过的题不会再抽到，整库抽完自动重新开始。答错的题会进「错题 → 听力」。
+      </p>
+      <p className="listen-note">
+        音频由系统语音合成朗读：男声女声只用音高区分。材料是按真题题型重写的仿真题，不是真题原文。
       </p>
       <button type="button" className="btn btn-ghost btn-sm listen-voice-entry" onClick={() => navigate('/settings')}>
         音色听着别扭？去设置里换一把

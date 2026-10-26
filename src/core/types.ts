@@ -186,6 +186,27 @@ export interface RoundResult {
   words: string[]
 }
 
+/** 听力错题：一条 = 一道听力题的最近一次答错记录 */
+export interface ListeningMistake {
+  /** `${level}:${mode}:${itemId}` */
+  key: string
+  level: 'cet4' | 'cet6'
+  mode: 'drill' | 'mock'
+  itemId: string
+  section: string
+  /** 真题模拟题的场次标注（仿真） */
+  source?: string
+  stem: string
+  options: string[]
+  /** 最近一次选错的下标 */
+  chosen: number
+  /** 正确下标 */
+  answer: number
+  /** 累计答错次数 */
+  wrong: number
+  lastWrongAt: number
+}
+
 /** 每日练习痕迹 */
 export interface DailyStat {
   /** YYYY-MM-DD */

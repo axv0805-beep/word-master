@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../components/ui/Icons'
 import { ProgressBar } from '../components/ui/Widgets'
-import { getListeningSet, isListeningLevel, isListeningMode } from '../data/listening'
+import { isListeningLevel, isListeningMode, pickListeningRound, type ListeningRound } from '../data/listening'
 import { LEVEL_LABEL, MODE_LABEL, type ListeningItem, type ListeningLine } from '../core/listening'
 import { speakLines, stopSpeaking, type SpeechHandle, type SpeechLine } from '../core/speech'
 import { useAppStore } from '../store/appStore'
@@ -32,11 +32,10 @@ export function ListeningSessionPage() {
   const { level, mode } = useParams()
 
   const valid = isListeningLevel(level) && isListeningMode(mode)
-  const set = useMemo(
-    () => (valid ? getListeningSet(level, mode) : null),
-    [valid, level, mode]
-  )
+  const markListeningDrawn = useAppStore((state) => state.markListeningDrawn)
+  const recordListeningMistake = useAppStore((state) => state.recordListeningMistake)
 
+  const [round, setRound] = useState<ListeningRound | null>(null)
   const [index, setIndex] = useState(0)
   const [picked, setPicked] = useState<number | null>(null)
   const [answers, setAnswers] = useState<number[]>([])
@@ -47,7 +46,22 @@ export function ListeningSessionPage() {
   const speechVoice = useAppStore((state) => state.settings.speechVoice)
 
   const handleRef = useRef<SpeechHandle | null>(null)
-  const item: ListeningItem | null = set?.items[index] ?? null
+
+  /** 抽一轮 6 题：只用没抽过的题，抽干了会从头重新开始 */
+  const drawRound = useCallback(() => {
+    if (!valid) return
+    const key = `${level}:${mode}`
+    const drawn = useAppStore.getState().listeningDrawn[key] ?? []
+    const next = pickListeningRound(level, mode, drawn)
+    markListeningDrawn(level, mode, next.ids, next.restarted)
+    setRound(next)
+  }, [valid, level, mode, markListeningDrawn])
+
+  useEffect(() => {
+    drawRound()
+  }, [drawRound])
+
+  const item: ListeningItem | null = round?.items[index] ?? null
 
   const stopAudio = useCallback(() => {
     handleRef.current?.stop()
@@ -75,7 +89,7 @@ export function ListeningSessionPage() {
     if (!ok) setSpeechOk(false)
   }, [item, playing, speechVoice, stopAudio])
 
-  if (!valid || !set || !item) {
+  if (!valid || !round || !item) {
     return (
       <div className="px-4 pt-5">
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -88,19 +102,32 @@ export function ListeningSessionPage() {
     )
   }
 
-  const total = set.items.length
-  const correct = answers.reduce((sum, value, i) => (value === set.items[i].answer ? sum + 1 : sum), 0)
+  const total = round.items.length
+  const correct = answers.reduce((sum, value, i) => (value === round.items[i].answer ? sum + 1 : sum), 0)
   const answered = picked !== null
   const last = index === total - 1
 
   function choose(option: number) {
-    if (picked !== null) return
+    if (picked !== null || !item) return
     setPicked(option)
     setAnswers((prev) => {
       const next = prev.slice()
       next[index] = option
       return next
     })
+    if (option !== item.answer) {
+      recordListeningMistake({
+        level: item.level,
+        mode: item.mode,
+        itemId: item.id,
+        section: item.section,
+        source: item.source,
+        stem: item.stem,
+        options: item.options,
+        chosen: option,
+        answer: item.answer
+      })
+    }
     stopAudio()
   }
 
@@ -114,6 +141,7 @@ export function ListeningSessionPage() {
 
   function restart() {
     stopAudio()
+    drawRound()
     setIndex(0)
     setPicked(null)
     setAnswers([])
@@ -136,6 +164,9 @@ export function ListeningSessionPage() {
             <span> / {total}</span>
           </p>
           <p className="listen-result__rate">正确率 {rate}%</p>
+          {total > correct ? (
+            <p className="listen-result__hint">{total - correct} 道错题已收进「错题 → 听力」</p>
+          ) : null}
           <div className="listen-result__bar">
             <ProgressBar value={total === 0 ? 0 : correct / total} ariaLabel="本次正确率" />
           </div>
@@ -143,7 +174,7 @@ export function ListeningSessionPage() {
         <div className="listen-result__actions">
           <button type="button" className="btn btn-primary btn-lg" onClick={restart}>
             <Icon name="refresh" size={16} strokeWidth={2.1} />
-            再听一遍
+            再抽 6 题
           </button>
           <button type="button" className="btn btn-soft btn-lg" onClick={() => navigate('/learn')}>
             回学习页
@@ -176,7 +207,10 @@ export function ListeningSessionPage() {
       </div>
 
       <div className="card listen-player" data-playing={playing ? 'true' : 'false'}>
-        <span className="listen-player__section">{item.section}</span>
+        <span className="listen-player__section">
+          {item.section}
+          {item.source && <span className="listen-player__source">· {item.source}</span>}
+        </span>
         <button
           type="button"
           className="listen-player__button"

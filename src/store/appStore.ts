@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import type {
   DictEntry,
   DailyStat,
+  ListeningMistake,
   RoundResult,
   Settings,
   StudyState,
@@ -52,6 +53,10 @@ export interface AppState {
   rounds: RoundResult[]
   study: StudyState
   customBooks: CustomBook[]
+  /** 听力抽题记账：key 是 `${level}:${mode}`，值是已经抽过的题号 */
+  listeningDrawn: Record<string, string[]>
+  /** 听力错题本 */
+  listeningMistakes: ListeningMistake[]
 
   updateSettings: (patch: Partial<Settings>) => void
   /** 完成首次引导：一次性写入所选词书、每日目标与每轮单词数 */
@@ -63,6 +68,11 @@ export interface AppState {
   setAlphaCursor: (bookId: string, cursor: number) => void
   setLastLetter: (bookId: string, letter: string) => void
   setCustomBooks: (books: CustomBook[]) => void
+  markListeningDrawn: (level: 'cet4' | 'cet6', mode: 'drill' | 'mock', ids: string[], restarted: boolean) => void
+  /** 答错时记一条；同一道题重复答错只累加次数 */
+  recordListeningMistake: (entry: Omit<ListeningMistake, 'key' | 'wrong' | 'lastWrongAt'>) => void
+  dropListeningMistake: (key: string) => void
+  clearListeningMistakes: () => void
   resetProgress: () => void
   resetAll: () => void
 }
@@ -150,7 +160,9 @@ export function mergePersistedState(persisted: unknown, current: AppState): AppS
     mistakes: (asRecord(saved.mistakes) as unknown as MistakeMap) ?? {},
     daily: (asRecord(saved.daily) as unknown as DailyMap) ?? {},
     rounds: Array.isArray(saved.rounds) ? (saved.rounds as RoundResult[]) : [],
-    customBooks: Array.isArray(saved.customBooks) ? (saved.customBooks as CustomBook[]) : []
+    customBooks: Array.isArray(saved.customBooks) ? (saved.customBooks as CustomBook[]) : [],
+    listeningDrawn: (asRecord(saved.listeningDrawn) as Record<string, string[]>) ?? {},
+    listeningMistakes: Array.isArray(saved.listeningMistakes) ? (saved.listeningMistakes as ListeningMistake[]) : []
   }
 }
 
@@ -164,6 +176,8 @@ export const useAppStore = create<AppState>()(
       rounds: [],
       study: EMPTY_STUDY,
       customBooks: [],
+      listeningDrawn: {},
+      listeningMistakes: [],
 
       updateSettings: (patch) =>
         set((state) => {
@@ -235,8 +249,44 @@ export const useAppStore = create<AppState>()(
 
       setCustomBooks: (books) => set({ customBooks: books }),
 
+      markListeningDrawn: (level, mode, ids, restarted) =>
+        set((state) => {
+          const key = `${level}:${mode}`
+          const previous = state.listeningDrawn[key] ?? []
+          const next = restarted
+            ? Array.from(new Set(ids))
+            : Array.from(new Set([...previous, ...ids]))
+          return { listeningDrawn: { ...state.listeningDrawn, [key]: next } }
+        }),
+
+      recordListeningMistake: (entry) =>
+        set((state) => {
+          const key = `${entry.level}:${entry.mode}:${entry.itemId}`
+          const now = Date.now()
+          const existing = state.listeningMistakes.find((item) => item.key === key)
+          const next = existing
+            ? state.listeningMistakes.map((item) =>
+                item.key === key ? { ...item, chosen: entry.chosen, wrong: item.wrong + 1, lastWrongAt: now } : item
+              )
+            : [{ ...entry, key, wrong: 1, lastWrongAt: now }, ...state.listeningMistakes]
+          return { listeningMistakes: next }
+        }),
+
+      dropListeningMistake: (key) =>
+        set((state) => ({ listeningMistakes: state.listeningMistakes.filter((item) => item.key !== key) })),
+
+      clearListeningMistakes: () => set({ listeningMistakes: [] }),
+
       resetProgress: () =>
-        set({ progress: {}, mistakes: {}, daily: {}, rounds: [], study: EMPTY_STUDY }),
+        set({
+          progress: {},
+          mistakes: {},
+          daily: {},
+          rounds: [],
+          study: EMPTY_STUDY,
+          listeningDrawn: {},
+          listeningMistakes: []
+        }),
 
       resetAll: () =>
         set({
@@ -246,7 +296,9 @@ export const useAppStore = create<AppState>()(
           daily: {},
           rounds: [],
           study: EMPTY_STUDY,
-          customBooks: []
+          customBooks: [],
+          listeningDrawn: {},
+          listeningMistakes: []
         })
     }),
     {
@@ -269,7 +321,9 @@ export const useAppStore = create<AppState>()(
         daily: state.daily,
         rounds: state.rounds,
         study: state.study,
-        customBooks: state.customBooks
+        customBooks: state.customBooks,
+        listeningDrawn: state.listeningDrawn,
+        listeningMistakes: state.listeningMistakes
       })
     }
   )
@@ -321,7 +375,9 @@ export function exportBackup(): string {
       daily: state.daily,
       rounds: state.rounds,
       study: state.study,
-      customBooks: state.customBooks
+      customBooks: state.customBooks,
+      listeningDrawn: state.listeningDrawn,
+      listeningMistakes: state.listeningMistakes
     },
     null,
     2
@@ -357,7 +413,9 @@ export function importBackup(text: string): ImportResult {
     daily: asRecord(data.daily) as unknown as DailyMap,
     rounds: Array.isArray(data.rounds) ? (data.rounds as RoundResult[]) : [],
     study: (Object.keys(asRecord(data.study)).length > 0 ? data.study : EMPTY_STUDY) as StudyState,
-    customBooks: Array.isArray(data.customBooks) ? (data.customBooks as CustomBook[]) : []
+    customBooks: Array.isArray(data.customBooks) ? (data.customBooks as CustomBook[]) : [],
+    listeningDrawn: asRecord(data.listeningDrawn) as Record<string, string[]>,
+    listeningMistakes: Array.isArray(data.listeningMistakes) ? (data.listeningMistakes as ListeningMistake[]) : []
   })
 
   return { ok: true, message: `导入成功：${Object.keys(progress).length} 条学习记录已恢复` }

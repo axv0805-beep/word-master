@@ -1483,6 +1483,45 @@
     color: var(--brand-1);
   }
 
+  /* 听力错题卡 */
+  .listen-mistake__stem {
+    margin-top: 8px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .listen-mistake__line {
+    margin-top: 6px;
+    font-size: 0.78rem;
+    line-height: 1.55;
+  }
+
+  .listen-mistake__line > span:first-child {
+    margin-right: 6px;
+    font-weight: 600;
+  }
+
+  .listen-mistake__line--wrong {
+    color: var(--wrong);
+  }
+
+  .listen-mistake__line--right {
+    color: var(--correct);
+  }
+
+  .listen-mistake__text {
+    color: var(--text);
+    font-weight: 400;
+  }
+
+  .listen-player__source {
+    margin-left: 4px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
   .listen-transcript {
     margin-top: 10px;
     display: grid;
@@ -1545,6 +1584,12 @@
     margin-top: 2px;
     font-size: 0.82rem;
     color: var(--text-muted);
+  }
+
+  .listen-result__hint {
+    margin-top: 10px;
+    font-size: 0.76rem;
+    color: var(--brand-2);
   }
 
   .listen-result__bar {

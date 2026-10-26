@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui/Icons'
 import { SectionTitle } from '../components/ui/Widgets'
-import { listListeningSets } from '../data/listening'
+import { listListeningPools } from '../data/listening'
 
 /**
  * 学习页：听力已经能用，写作占个位。
@@ -9,11 +9,11 @@ import { listListeningSets } from '../data/listening'
  */
 export function LearnPage() {
   const navigate = useNavigate()
-  const sets = listListeningSets()
+  const pools = listListeningPools()
 
   const summary = (level: 'cet4' | 'cet6') => {
-    const own = sets.filter((set) => set.level === level)
-    const count = own.reduce((sum, set) => sum + set.items.length, 0)
+    const own = pools.filter((pool) => pool.level === level)
+    const count = own.reduce((sum, pool) => sum + pool.total, 0)
     return `${count} 道题`
   }
 
@@ -35,7 +35,7 @@ export function LearnPage() {
           <div className="min-w-0 flex-1">
             <p style={{ fontWeight: 700, fontSize: '.95rem' }}>四六级听力</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              短对话与短文，可重播、答完看原文
+              2016–2026 场次仿真，题库随时扩充，每轮随机 6 题
             </p>
           </div>
         </div>

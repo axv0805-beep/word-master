@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router-dom'
 import App from '../App'
 import { DEFAULT_SETTINGS, useAppStore } from '../store/appStore'
 import { stopSpeaking } from '../core/speech'
+import { getListeningPool } from '../data/listening'
+import type { ListeningItem } from '../core/listening'
 
 /**
  * 听力的材料是系统语音合成的：jsdom 里没有 speechSynthesis，
@@ -49,7 +51,9 @@ function resetStore() {
     daily: {},
     rounds: [],
     study: { alphaCursor: {}, lastLetter: {} },
-    customBooks: []
+    customBooks: [],
+    listeningDrawn: {},
+    listeningMistakes: []
   })
 }
 
@@ -65,16 +69,31 @@ function options() {
   return Array.from(document.querySelectorAll('.listen-option')) as HTMLButtonElement[]
 }
 
+/** 界面上正在显示的题：从题库里按题干反查，避免依赖随机抽到的顺序 */
+function currentItem(level: 'cet4' | 'cet6', mode: 'drill' | 'mock'): ListeningItem {
+  const stem = document.querySelector('.listen-stem')?.textContent?.trim() ?? ''
+  const item = getListeningPool(level, mode).find((entry) => entry.stem === stem)
+  if (!item) throw new Error(`题库里找不到当前题：${stem}`)
+  return item
+}
+
+function drawnIds(level: 'cet4' | 'cet6' = 'cet4', mode: 'drill' | 'mock' = 'drill') {
+  return useAppStore.getState().listeningDrawn[`${level}:${mode}`] ?? []
+}
+
 describe('学习页与四六级听力', () => {
   beforeEach(() => {
     resetStore()
     installFakeSpeech()
+    // 抽题用 Math.random 打乱：固定成 0 让每轮的题顺序可复现
+    vi.spyOn(Math, 'random').mockReturnValue(0)
   })
 
   afterEach(() => {
     stopSpeaking()
     cleanup()
     vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
   it('学习页有听力入口，写作还是敬请期待', async () => {
@@ -86,22 +105,19 @@ describe('学习页与四六级听力', () => {
     expect(screen.getByText(/作文与翻译的批改正在做/)).toBeTruthy()
   })
 
-  it('四级听力页能选专项训练或真题模拟，题量不超过 10 道', async () => {
+  it('四级听力页能选专项训练或真题模拟，并标出题库题量与每轮题数', async () => {
     renderAt('/learn/listening/cet4')
     await waitFor(() => expect(screen.getByText('选择练习方式')).toBeTruthy())
     expect(screen.getByText('专项训练')).toBeTruthy()
     expect(screen.getByText('真题模拟')).toBeTruthy()
-    // caption 形如「6 道题 · 约 5 分钟」
     const captions = Array.from(document.querySelectorAll('.listen-mode__caption')).map((el) => el.textContent ?? '')
     expect(captions.length).toBe(2)
     captions.forEach((text) => {
-      const count = Number(text.match(/^(\d+) 道题/)?.[1] ?? 0)
-      expect(count).toBeGreaterThan(0)
-      expect(count).toBeLessThanOrEqual(10)
+      expect(text).toMatch(/26 道题 · 每轮随机 6 道/)
     })
   })
 
-  it('播放、答对、答错都能给出反馈并进入下一题', async () => {
+  it('播放、答对、答错都能给出反馈，答错的题会进听力错题本', async () => {
     renderAt('/learn/listening/cet4/drill')
     await waitFor(() => expect(screen.getByText('1 / 6')).toBeTruthy())
 
@@ -111,8 +127,8 @@ describe('学习页与四六级听力', () => {
     await waitFor(() => expect(screen.getByText(/正在播放/)).toBeTruthy())
     await waitFor(() => expect(screen.getByText(/点一下播放录音/)).toBeTruthy())
 
-    // 第一题正确答案是 B
-    fireEvent.click(options()[1])
+    const first = currentItem('cet4', 'drill')
+    fireEvent.click(options()[first.answer])
     await waitFor(() => expect(screen.getByText('答对了')).toBeTruthy())
     expect(screen.getByText('看原文')).toBeTruthy()
     fireEvent.click(screen.getByText('看原文'))
@@ -121,27 +137,68 @@ describe('学习页与四六级听力', () => {
     fireEvent.click(screen.getByText('下一题'))
     await waitFor(() => expect(screen.getByText('2 / 6')).toBeTruthy())
 
-    // 第二题的正确答案是 A，这里故意选成 B
-    fireEvent.click(options()[1])
+    const second = currentItem('cet4', 'drill')
+    const wrongOption = (second.answer + 1) % second.options.length
+    fireEvent.click(options()[wrongOption])
     await waitFor(() => expect(screen.getByText(/答错了，正确选项是/)).toBeTruthy())
+
+    const recorded = useAppStore.getState().listeningMistakes
+    expect(recorded).toHaveLength(1)
+    expect(recorded[0].itemId).toBe(second.id)
+    expect(recorded[0].chosen).toBe(wrongOption)
+    expect(recorded[0].answer).toBe(second.answer)
   })
 
-  it('做完一套题会给出正确率，并能再听一遍', async () => {
+  it('做完一轮会给出正确率，再抽一轮不会重复抽到做过的题', async () => {
     renderAt('/learn/listening/cet6/drill')
     await waitFor(() => expect(screen.getByText('1 / 6')).toBeTruthy())
 
-    // 六级专项第一题正确答案是 B，其余题随便选，最后只校验结果页出现
     for (let i = 0; i < 6; i += 1) {
-      const target = options()[i === 0 ? 1 : 0]
-      fireEvent.click(target)
+      const item = currentItem('cet6', 'drill')
+      fireEvent.click(options()[item.answer])
       await waitFor(() => expect(document.querySelector('.listen-explain')).toBeTruthy())
       fireEvent.click(screen.getByText(i === 5 ? '看结果' : '下一题'))
     }
 
     await waitFor(() => expect(screen.getByText(/正确率 \d+%/)).toBeTruthy())
-    expect(screen.getByText('再听一遍')).toBeTruthy()
-    fireEvent.click(screen.getByText('再听一遍'))
+    const firstRound = drawnIds('cet6', 'drill')
+    expect(firstRound).toHaveLength(6)
+
+    fireEvent.click(screen.getByText('再抽 6 题'))
     await waitFor(() => expect(screen.getByText('1 / 6')).toBeTruthy())
+
+    const secondRound = drawnIds('cet6', 'drill')
+    expect(secondRound).toHaveLength(12)
+    // 第二轮的一题不能出现在第一轮里
+    const current = currentItem('cet6', 'drill')
+    expect(firstRound).not.toContain(current.id)
+  })
+
+  it('错题本里的听力标签会列出听力错题', async () => {
+    useAppStore.setState({
+      listeningMistakes: [
+        {
+          key: 'cet4:drill:c4-d01',
+          level: 'cet4',
+          mode: 'drill',
+          itemId: 'c4-d01',
+          section: '短对话',
+          stem: 'What does the woman suggest?',
+          options: ['Take the bus.', 'Walk to work.', 'Buy a bike.', 'Work from home.'],
+          chosen: 1,
+          answer: 0,
+          wrong: 2,
+          lastWrongAt: Date.now()
+        }
+      ]
+    })
+    renderAt('/mistakes')
+    await waitFor(() => expect(screen.getByText('错题本')).toBeTruthy())
+    fireEvent.click(screen.getByText('听力 1'))
+    await waitFor(() => expect(screen.getByText('What does the woman suggest?')).toBeTruthy())
+    expect(screen.getByText('你选了 B')).toBeTruthy()
+    expect(screen.getByText('正确答案 A')).toBeTruthy()
+    expect(screen.getByText('错 2 次')).toBeTruthy()
   })
 
   it('底部导航里已经没有词书 Tab，词书页仍可从首页进入', async () => {

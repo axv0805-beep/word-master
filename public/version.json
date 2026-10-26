@@ -1,8 +1,8 @@
 {
-  "versionCode": 20,
-  "versionName": "1.1.18",
-  "url": "./download/cimiao-1.1.18.apk",
-  "notes": "更新改为从 GitHub Release 获取：安装包和版本清单同一次发布，检查更新更快也更稳；下载仍走原来的分段并行与断点续传。",
+  "versionCode": 22,
+  "versionName": "1.1.20",
+  "url": "https://axv0805-beep.github.io/word-master/download/cimiao-1.1.20.apk",
+  "notes": "改用 GitHub Release 发版：应用内检查更新读的是 Release 里的清单，安装包和清单一起发布，不会再出现「提示有新版但下载 404」；Release 连不上时自动退回站点清单。",
   "publishedAt": "2026-10-26",
-  "sha256": "57eee4b6a506310540e0e1c34b602e97d1c449fe285883f0a710fed0b5997576"
+  "sha256": "a63aee09d81d06ae641d9e114ef6f99461403dbdbb74ff6ba21d4d950bcd7c7c"
 }

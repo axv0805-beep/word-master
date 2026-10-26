@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { UPDATE_MANIFEST_URL, nativeApp, requestUpdateCheck } from '../core/native'
+import { nativeApp, requestUpdateCheck, resolveManifestUrl } from '../core/native'
 import type { UpdateInfo } from '../components/ui/UpdateProgress'
 
 /** 一次打开里只查一次清单：启动弹窗和首页「有新版本」提示共用同一个结果 */
@@ -12,7 +12,7 @@ function normalize(raw: string): UpdateInfo | null {
     return {
       versionCode: parsed.versionCode,
       versionName: typeof parsed.versionName === 'string' ? parsed.versionName : '',
-      url: new URL(parsed.url, UPDATE_MANIFEST_URL).href,
+      url: resolveManifestUrl(parsed.url),
       notes: parsed.notes,
       sha256: parsed.sha256
     }

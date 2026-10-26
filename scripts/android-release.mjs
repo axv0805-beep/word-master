@@ -66,14 +66,14 @@ function readManifest(root = ROOT) {
 export function writeVersionManifest(
   { versionCode, versionName, apkName, notes, publishedAt, sha256 },
   root = ROOT,
-  { outDir = path.join(root, 'public'), urlPrefix = './download/' } = {}
+  { outDir = path.join(root, 'public'), urlBase = PAGES_DOWNLOAD_BASE } = {}
 ) {
   const file = path.join(outDir, 'version.json')
   const previous = readManifest(root)
   const manifest = {
     versionCode,
     versionName,
-    url: `${urlPrefix}${apkName}`,
+    url: `${urlBase}${apkName}`,
     notes: notes || previous?.notes || DEFAULT_NOTES,
     publishedAt: publishedAt || new Date().toISOString().slice(0, 10)
   }
@@ -90,6 +90,10 @@ export function writeVersionManifest(
  */
 export const RELEASE_MANIFEST_URL =
   'https://github.com/axv0805-beep/word-master/releases/latest/download/version.json'
+
+/** 安装包的两套固定下载地址：gh-pages（老）与 Release（新） */
+export const PAGES_DOWNLOAD_BASE = 'https://axv0805-beep.github.io/word-master/download/'
+export const RELEASE_DOWNLOAD_BASE = 'https://github.com/axv0805-beep/word-master/releases/latest/download/'
 
 /**
  * 把构建出来的 APK 发布到 public/download/：

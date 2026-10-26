@@ -757,6 +757,56 @@
     box-shadow: 0 6px 14px -8px var(--brand-glow);
   }
 
+  /* ---------- 设置页：听力音色的下拉框 ---------- */
+  .voice-select {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 34px;
+    padding: 0 34px 0 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background-color: var(--surface-2);
+    color: var(--text);
+    font-size: 0.82rem;
+    line-height: 34px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 17px) 14px, calc(100% - 12px) 14px;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    text-overflow: ellipsis;
+  }
+
+  .listen-voice-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 0;
+    color: var(--brand-2);
+    font-size: 0.76rem;
+    font-weight: 500;
+  }
+
+  .listen-voice-entry::after {
+    content: '›';
+    font-size: 0.95rem;
+    line-height: 1;
+    opacity: 0.7;
+    transition: transform 160ms ease;
+  }
+
+  .listen-voice-entry:active::after {
+    transform: translateX(2px);
+  }
+
+  .voice-select:focus-visible {
+    outline: 2px solid var(--brand-2);
+    outline-offset: 2px;
+  }
+
   /* ---------- 首页：两副面孔的切换按钮 ---------- */
   /* 水滴 + 天数（经典版）与 小树芽（打卡页）之间形变：
      宽度、圆角、底色一起过渡，两个图标层交叉缩放，切换时像同一颗按钮在变形。 */

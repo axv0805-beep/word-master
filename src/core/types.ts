@@ -91,6 +91,8 @@ export interface Settings {
   accent: 'us' | 'uk'
   /** 优先使用在线真人发音（失败回退系统语音） */
   onlineAudio: boolean
+  /** 听力材料用哪个系统语音朗读；空字符串 = 自动挑一个自然的美音 */
+  speechVoice: string
   dailyGoal: number
   theme: ThemeId
   /** 拼写题是否显示音标提示 */

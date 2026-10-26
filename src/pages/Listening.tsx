@@ -75,8 +75,11 @@ export function ListeningPage() {
       })}
 
       <p className="listen-note">
-        音频由系统语音合成朗读：两个说话人分别用美音和英音，连点会打断重播。听不清可以先看原文，再回来挑战一次。
+        音频由系统语音合成朗读：男声女声只用音高区分，连点会打断重播。听不清可以先看原文，再回来挑战一次。
       </p>
+      <button type="button" className="btn btn-ghost btn-sm listen-voice-entry" onClick={() => navigate('/settings')}>
+        音色听着别扭？去设置里换一把
+      </button>
     </div>
   )
 }

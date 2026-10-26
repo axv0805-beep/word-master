@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../components/ui/Icons'
 import { SectionTitle, Segmented, Stepper } from '../components/ui/Widgets'
 import { UpdateProgressView, useUpdateDownload } from '../components/ui/UpdateProgress'
@@ -11,6 +11,7 @@ import { buildStudyPlan, formatFinishDate } from '../core/plan'
 import { THEMES, themeById } from '../core/theme'
 import type { MistakeReplayMode, QuestionType } from '../core/types'
 import { APP_VERSION, UPDATE_MANIFEST_URL, isNativeShell, nativeApp, requestUpdateCheck } from '../core/native'
+import { listSpeechVoices, primeSpeech, speakLines, stopSpeaking, type SpeechVoice } from '../core/speech'
 
 const QUESTION_TYPES: Array<{ value: QuestionType; label: string; hint: string }> = [
   { value: 'zh2en', label: '看中选英', hint: '给中文意思，选英文单词 4 选 1' },
@@ -104,6 +105,50 @@ export function SettingsPage() {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [confirmReset, setConfirmReset] = useState<'progress' | 'all' | null>(null)
   const app = nativeApp()
+  const [voices, setVoices] = useState<SpeechVoice[]>([])
+  const [voiceTrying, setVoiceTrying] = useState(false)
+
+  // 语音列表：安卓壳一次就拿到；浏览器要等 voiceschanged，所以多试几次
+  useEffect(() => {
+    primeSpeech()
+    let alive = true
+    let tries = 0
+    const load = () => {
+      if (!alive) return
+      const list = listSpeechVoices().filter((voice) => /^en([-_]|$)/i.test(voice.lang))
+      if (list.length > 0 || tries >= 6) {
+        setVoices(list)
+        return
+      }
+      tries += 1
+      timer = window.setTimeout(load, 250)
+    }
+    let timer = window.setTimeout(load, 0)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+  }, [])
+
+  const tryVoice = () => {
+    if (voiceTrying) {
+      stopSpeaking()
+      setVoiceTrying(false)
+      return
+    }
+    setVoiceTrying(true)
+    const handle = speakLines(
+      [
+        { text: 'Good morning. The library closes at nine on weekdays.', accent: 'us', pitch: 0.94, rate: 0.98 },
+        { text: 'Thanks. I will come back before then.', accent: 'us', pitch: 1.06, rate: 0.96 }
+      ],
+      { voiceName: settings.speechVoice, rate: 0.92 }
+    )
+    void handle.done.then((ok) => {
+      setVoiceTrying(false)
+      if (!ok) showToast('这台设备的语音合成好像不可用', 'error')
+    })
+  }
   const [checking, setChecking] = useState(false)
   const [update, setUpdate] = useState<{
     versionCode: number
@@ -387,6 +432,40 @@ export function SettingsPage() {
             value={settings.accent}
             onChange={(value) => updateSettings({ accent: value })}
           />
+        </Row>
+        <Row
+          title="听力音色"
+          hint={
+            voices.length > 0
+              ? '听力材料统一用这一把嗓子，男声/女声只靠音高区分'
+              : '这台设备没读到英语语音，会用系统默认音色朗读'
+          }
+          stacked
+        >
+          <div className="flex items-center gap-2">
+            <select
+              className="voice-select"
+              aria-label="听力音色"
+              value={settings.speechVoice}
+              onChange={(event) => updateSettings({ speechVoice: event.target.value })}
+            >
+              <option value="">自动（挑最自然的英语音色）</option>
+              {voices.map((voice) => (
+                <option key={voice.name} value={voice.name}>
+                  {voice.name} · {voice.lang}
+                  {voice.local ? '' : '（网络）'}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-soft btn-sm shrink-0"
+              onClick={tryVoice}
+              disabled={voices.length === 0 && !app}
+            >
+              {voiceTrying ? '停止' : '试听'}
+            </button>
+          </div>
         </Row>
         <Row title="拼写题显示音标" hint="降低拼写难度，适合初学">
           <Toggle

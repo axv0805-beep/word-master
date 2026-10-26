@@ -33,6 +33,8 @@ export const DEFAULT_SETTINGS: Settings = {
   autoSpeak: true,
   accent: 'us',
   onlineAudio: true,
+  // 听力音色：空 = 自动；设置页里可以选设备上装了的任意英语语音
+  speechVoice: '',
   dailyGoal: 30,
   theme: 'forest',
   showPhoneticInSpelling: true,

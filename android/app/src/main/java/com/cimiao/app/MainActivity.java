@@ -9,10 +9,10 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
+import android.speech.tts.Voice;
 import android.view.View;
 import android.view.Window;
 import android.webkit.JavascriptInterface;
@@ -45,6 +45,7 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -197,6 +198,7 @@ public class MainActivity extends Activity {
                 if (tts == null || text == null || text.isEmpty()) return;
                 tts.setLanguage("en-GB".equals(lang) ? Locale.UK : Locale.US);
                 tts.setSpeechRate(rate > 0 ? rate : 0.9f);
+                tts.setPitch(1f);
                 tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "word");
             });
         }
@@ -209,11 +211,12 @@ public class MainActivity extends Activity {
         }
 
         /**
-         * 整段朗读听力材料：json 是 [{"t": 文本, "l": "en-US"}]。
+         * 整段朗读听力材料：json 是 [{"t": 文本, "l": "en-US", "p": 音高, "r": 语速}]。
+         * voiceName 非空时优先用那把音色（设置页里选的），否则用默认英语音色。
          * 全部用 QUEUE_ADD 排队，句间插静音，最后再排一个空句当结束标记。
          */
         @JavascriptInterface
-        public void speakLines(final String json, final float rate) {
+        public void speakLines(final String json, final float rate, final String voiceName) {
             if (json == null || json.isEmpty()) return;
             runOnUiThread(() -> {
                 if (tts == null) {
@@ -221,7 +224,10 @@ public class MainActivity extends Activity {
                     return;
                 }
                 tts.stop();
+                applyVoice(voiceName);
+                tts.setPitch(1f);
                 tts.setSpeechRate(rate > 0 ? rate : 0.94f);
+                float fallbackRate = rate > 0 ? rate : 0.94f;
                 try {
                     JSONArray lines = new JSONArray(json);
                     int spoken = 0;
@@ -230,7 +236,14 @@ public class MainActivity extends Activity {
                         String text = line.optString("t", "");
                         String lang = line.optString("l", "en-US");
                         if (text.isEmpty()) continue;
-                        tts.setLanguage("en-GB".equals(lang) ? Locale.UK : Locale.US);
+                        if (voiceName == null || voiceName.isEmpty()) {
+                            tts.setLanguage("en-GB".equals(lang) ? Locale.UK : Locale.US);
+                        }
+                        float pitch = (float) line.optDouble("p", 1);
+                        float lineRate = (float) line.optDouble("r", fallbackRate);
+                        tts.setSpeechRate(lineRate > 0 ? lineRate : fallbackRate);
+                        // 音高也按句设置：男声女声共用同一把嗓子，只靠音高区分角色
+                        tts.setPitch(pitch > 0 ? pitch : 1f);
                         tts.speak(text, TextToSpeech.QUEUE_ADD, null, "line-" + i);
                         tts.playSilentUtterance(SPEECH_GAP_MS, TextToSpeech.QUEUE_ADD, "gap-" + i);
                         spoken++;
@@ -243,6 +256,50 @@ public class MainActivity extends Activity {
                     notifySpeechLinesDone(SPEECH_END_ID);
                 }
             });
+        }
+
+        /**
+         * 设备上装了的英语语音，给设置页的「听力音色」用。
+         * getVoices() 可能要读引擎数据，放到后台线程拼 JSON，网页侧解析失败就当没有列表。
+         */
+        @JavascriptInterface
+        public String getVoices() {
+            if (tts == null) return "[]";
+            JSONArray array = new JSONArray();
+            try {
+                Set<Voice> voices = tts.getVoices();
+                if (voices == null) return "[]";
+                for (Voice voice : voices) {
+                    Locale locale = voice.getLocale();
+                    if (locale == null || !"en".equals(locale.getLanguage())) continue;
+                    if (voice.isNetworkConnectionRequired()) continue;
+                    JSONObject item = new JSONObject();
+                    item.put("name", voice.getName());
+                    item.put("lang", locale.toLanguageTag());
+                    item.put("local", !voice.isNetworkConnectionRequired());
+                    array.put(item);
+                }
+            } catch (Exception e) {
+                return "[]";
+            }
+            return array.toString();
+        }
+    }
+
+    /** 按名字挑音色（设置页传来的）；找不到就保持当前默认英语音色 */
+    private void applyVoice(String voiceName) {
+        if (tts == null || voiceName == null || voiceName.isEmpty()) return;
+        try {
+            Set<Voice> voices = tts.getVoices();
+            if (voices == null) return;
+            for (Voice voice : voices) {
+                if (voiceName.equals(voice.getName())) {
+                    tts.setVoice(voice);
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            // 引擎不支持 Voice API 时忽略，继续用默认音色
         }
     }
 

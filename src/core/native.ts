@@ -16,8 +16,13 @@ export const UPDATE_MANIFEST_URL = 'https://axv0805-beep.github.io/word-master/v
 export interface AndroidSpeechBridge {
   speak(text: string, lang: string, rate: number): void
   stop(): void
-  /** 整段朗读：json 是 [{t: 文本, l: 语言}]，播完回调 window.__speechLinesDone */
-  speakLines?(json: string, rate: number): void
+  /**
+   * 整段朗读：json 是 [{t: 文本, l: 语言, p: 音高, r: 语速}]。
+   * voiceName 非空时用那把音色，否则用默认英语音色。播完回调 window.__speechLinesDone。
+   */
+  speakLines?(json: string, rate: number, voiceName?: string): void
+  /** 设备上可用的语音列表，JSON 字符串：[{name, lang, local}] */
+  getVoices?(): string
 }
 
 export interface AndroidAppBridge {

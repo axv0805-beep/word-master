@@ -5,15 +5,25 @@ import { ProgressBar } from '../components/ui/Widgets'
 import { getListeningSet, isListeningLevel, isListeningMode } from '../data/listening'
 import { LEVEL_LABEL, MODE_LABEL, type ListeningItem, type ListeningLine } from '../core/listening'
 import { speakLines, stopSpeaking, type SpeechHandle, type SpeechLine } from '../core/speech'
+import { useAppStore } from '../store/appStore'
 
 const LETTERS = ['A', 'B', 'C', 'D']
 
-/** 三个说话人拆成两种音色：男声美音偏低、女声英音偏高、旁白居中 */
+/**
+ * 三个说话人拆成三种轻微的音高：男声 / 女声 / 旁白。
+ * 只用一把嗓子（设置页选的那把，或自动挑的自然美音），靠音高和语速区分角色——
+ * 以前男女声各切英音/美音两把音色，听起来像两个人打架，是这次改掉的重点。
+ */
+const SPEAKER_TUNING = {
+  M: { pitch: 0.94, rate: 0.98 },
+  W: { pitch: 1.06, rate: 0.96 },
+  N: { pitch: 1, rate: 1 }
+} as const
+
 function toSpeechLines(material: ListeningLine[]): SpeechLine[] {
   return material.map((line) => {
-    if (line.speaker === 'M') return { text: line.text, accent: 'us' as const, pitch: 0.82 }
-    if (line.speaker === 'W') return { text: line.text, accent: 'uk' as const, pitch: 1.16 }
-    return { text: line.text, accent: 'us' as const, pitch: 1 }
+    const tuning = SPEAKER_TUNING[line.speaker] ?? SPEAKER_TUNING.N
+    return { text: line.text, accent: 'us' as const, pitch: tuning.pitch, rate: tuning.rate }
   })
 }
 
@@ -34,6 +44,7 @@ export function ListeningSessionPage() {
   const [speechOk, setSpeechOk] = useState(true)
   const [finished, setFinished] = useState(false)
   const [showText, setShowText] = useState(false)
+  const speechVoice = useAppStore((state) => state.settings.speechVoice)
 
   const handleRef = useRef<SpeechHandle | null>(null)
   const item: ListeningItem | null = set?.items[index] ?? null
@@ -53,7 +64,7 @@ export function ListeningSessionPage() {
       return
     }
     stopSpeaking()
-    const handle = speakLines(toSpeechLines(item.material))
+    const handle = speakLines(toSpeechLines(item.material), { voiceName: speechVoice, rate: 0.92 })
     handleRef.current = handle
     setPlaying(true)
     const ok = await handle.done
@@ -62,7 +73,7 @@ export function ListeningSessionPage() {
       setPlaying(false)
     }
     if (!ok) setSpeechOk(false)
-  }, [item, playing, stopAudio])
+  }, [item, playing, speechVoice, stopAudio])
 
   if (!valid || !set || !item) {
     return (

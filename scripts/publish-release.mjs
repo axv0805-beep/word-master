@@ -65,13 +65,29 @@ function run(gh, args, options = {}) {
   return execFileSync(gh, args, { encoding: 'utf8', stdio: options.stdio || 'pipe', ...options })
 }
 
-function releaseExists(gh, tag) {
+/** 按 tag 查 release：gh release view 看不到草稿，这里直接走 API，草稿也能查到 */
+function findRelease(gh, tag) {
   try {
-    run(gh, ['release', 'view', tag, '--repo', REPO])
-    return true
+    return JSON.parse(run(gh, ['api', `repos/${REPO}/releases/tags/${tag}`]))
   } catch {
-    return false
+    return null
   }
+}
+
+/** 把草稿转正、并标成 latest（gh release edit 对草稿不友好，直接打 API） */
+function publishRelease(gh, id) {
+  run(gh, [
+    'api',
+    '-X',
+    'PATCH',
+    `repos/${REPO}/releases/${id}`,
+    '-F',
+    'draft=false',
+    '-F',
+    'prerelease=false',
+    '-f',
+    'make_latest=true'
+  ])
 }
 
 const options = parseArgs(process.argv.slice(2))
@@ -121,12 +137,15 @@ const flags = ['--repo', REPO, '--title', `词芽 v${versionName}`, '--notes', m
 if (options.prerelease) flags.push('--prerelease')
 else flags.push('--latest')
 
-if (releaseExists(gh, tag)) {
-  console.log(`\n${tag} 已存在，改为覆盖资源`)
+const existing = findRelease(gh, tag)
+if (existing) {
+  console.log(`\n${tag} 已存在（${existing.draft ? '草稿' : '已发布'}），覆盖资源`)
   run(gh, ['release', 'upload', tag, stagedApk, manifestFile, '--repo', REPO, '--clobber'], { stdio: 'inherit' })
-  if (!options.prerelease) {
-    run(gh, ['release', 'edit', tag, '--repo', REPO, '--notes', manifest.notes, '--latest'], { stdio: 'inherit' })
+  // 没显式给说明时保留仓库里原有的正文（协作者写的那份更详细）
+  if (options.notes) {
+    run(gh, ['release', 'edit', tag, '--repo', REPO, '--notes', manifest.notes], { stdio: 'inherit' })
   }
+  if (!options.prerelease) publishRelease(gh, existing.id)
 } else {
   run(gh, ['release', 'create', tag, stagedApk, manifestFile, ...flags], { stdio: 'inherit' })
 }

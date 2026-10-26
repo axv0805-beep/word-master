@@ -207,6 +207,18 @@ export interface ListeningMistake {
   lastWrongAt: number
 }
 
+/** 写作练习记录：一条 = 一次交卷的得分 */
+export interface WritingRecord {
+  taskId: string
+  level: 'cet4' | 'cet6'
+  mode: 'drill' | 'mock'
+  title: string
+  score: number
+  band: string
+  words: number
+  at: number
+}
+
 /** 每日练习痕迹 */
 export interface DailyStat {
   /** YYYY-MM-DD */

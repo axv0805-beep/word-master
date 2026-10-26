@@ -12,6 +12,9 @@ import { StudyPage } from './pages/Study'
 import { LearnPage } from './pages/Learn'
 import { ListeningPage } from './pages/Listening'
 import { ListeningSessionPage } from './pages/ListeningSession'
+import { WritingPage } from './pages/Writing'
+import { WritingSessionPage } from './pages/WritingSession'
+import { WritingModelPage } from './pages/WritingModel'
 import { OnboardingPage } from './pages/Onboarding'
 import { useAppStore } from './store/appStore'
 import { primeSpeech } from './core/speech'
@@ -43,7 +46,9 @@ export default function App() {
   const isStudy = location.pathname.startsWith('/study')
   // 听力答题页自己有底部按钮，和导航栏抢位置会挤在一起
   const isListeningSession = /^\/learn\/listening\/[^/]+\/[^/]+$/.test(location.pathname)
-  const hideChrome = isStudy || isListeningSession
+  // 写作答题页与范文页同理：底部有自己的按钮，不需要导航栏
+  const isWritingSession = /^\/learn\/writing\/[^/]+\/[^/]+/.test(location.pathname)
+  const hideChrome = isStudy || isListeningSession || isWritingSession
   const onboarded = useAppStore((state) => state.settings.onboarded)
 
   // 首次进入先走引导：选词书 → 定每日目标 → 生成「多少天背完」的计划
@@ -86,6 +91,9 @@ export default function App() {
             <Route path="/learn" element={<LearnPage />} />
             <Route path="/learn/listening/:level" element={<ListeningPage />} />
             <Route path="/learn/listening/:level/:mode" element={<ListeningSessionPage />} />
+            <Route path="/learn/writing/:level" element={<WritingPage />} />
+            <Route path="/learn/writing/:level/:mode" element={<WritingSessionPage />} />
+            <Route path="/learn/writing/:level/:mode/model/:taskId" element={<WritingModelPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

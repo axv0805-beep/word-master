@@ -4,6 +4,7 @@ import type {
   DictEntry,
   DailyStat,
   ListeningMistake,
+  WritingRecord,
   RoundResult,
   Settings,
   StudyState,
@@ -57,6 +58,10 @@ export interface AppState {
   listeningDrawn: Record<string, string[]>
   /** 听力错题本 */
   listeningMistakes: ListeningMistake[]
+  /** 写作抽题记账：key 是 `${level}:${mode}`，值是已经写过的题号 */
+  writingDrawn: Record<string, string[]>
+  /** 写作得分记录（最近的在前，最多 40 条） */
+  writingRecords: WritingRecord[]
 
   updateSettings: (patch: Partial<Settings>) => void
   /** 完成首次引导：一次性写入所选词书、每日目标与每轮单词数 */
@@ -73,6 +78,9 @@ export interface AppState {
   recordListeningMistake: (entry: Omit<ListeningMistake, 'key' | 'wrong' | 'lastWrongAt'>) => void
   dropListeningMistake: (key: string) => void
   clearListeningMistakes: () => void
+  markWritingDrawn: (level: 'cet4' | 'cet6', mode: 'drill' | 'mock', taskId: string, restarted: boolean) => void
+  recordWritingResult: (entry: Omit<WritingRecord, 'at'>) => void
+  clearWritingRecords: () => void
   resetProgress: () => void
   resetAll: () => void
 }
@@ -162,7 +170,9 @@ export function mergePersistedState(persisted: unknown, current: AppState): AppS
     rounds: Array.isArray(saved.rounds) ? (saved.rounds as RoundResult[]) : [],
     customBooks: Array.isArray(saved.customBooks) ? (saved.customBooks as CustomBook[]) : [],
     listeningDrawn: (asRecord(saved.listeningDrawn) as Record<string, string[]>) ?? {},
-    listeningMistakes: Array.isArray(saved.listeningMistakes) ? (saved.listeningMistakes as ListeningMistake[]) : []
+    listeningMistakes: Array.isArray(saved.listeningMistakes) ? (saved.listeningMistakes as ListeningMistake[]) : [],
+    writingDrawn: (asRecord(saved.writingDrawn) as Record<string, string[]>) ?? {},
+    writingRecords: Array.isArray(saved.writingRecords) ? (saved.writingRecords as WritingRecord[]) : []
   }
 }
 
@@ -178,6 +188,8 @@ export const useAppStore = create<AppState>()(
       customBooks: [],
       listeningDrawn: {},
       listeningMistakes: [],
+      writingDrawn: {},
+      writingRecords: [],
 
       updateSettings: (patch) =>
         set((state) => {
@@ -277,6 +289,21 @@ export const useAppStore = create<AppState>()(
 
       clearListeningMistakes: () => set({ listeningMistakes: [] }),
 
+      markWritingDrawn: (level, mode, taskId, restarted) =>
+        set((state) => {
+          const key = `${level}:${mode}`
+          const previous = state.writingDrawn[key] ?? []
+          const next = restarted ? [taskId] : Array.from(new Set([...previous, taskId]))
+          return { writingDrawn: { ...state.writingDrawn, [key]: next } }
+        }),
+
+      recordWritingResult: (entry) =>
+        set((state) => ({
+          writingRecords: [{ ...entry, at: Date.now() }, ...state.writingRecords].slice(0, 40)
+        })),
+
+      clearWritingRecords: () => set({ writingRecords: [] }),
+
       resetProgress: () =>
         set({
           progress: {},
@@ -285,7 +312,9 @@ export const useAppStore = create<AppState>()(
           rounds: [],
           study: EMPTY_STUDY,
           listeningDrawn: {},
-          listeningMistakes: []
+          listeningMistakes: [],
+          writingDrawn: {},
+          writingRecords: []
         }),
 
       resetAll: () =>
@@ -298,7 +327,9 @@ export const useAppStore = create<AppState>()(
           study: EMPTY_STUDY,
           customBooks: [],
           listeningDrawn: {},
-          listeningMistakes: []
+          listeningMistakes: [],
+          writingDrawn: {},
+          writingRecords: []
         })
     }),
     {
@@ -323,7 +354,9 @@ export const useAppStore = create<AppState>()(
         study: state.study,
         customBooks: state.customBooks,
         listeningDrawn: state.listeningDrawn,
-        listeningMistakes: state.listeningMistakes
+        listeningMistakes: state.listeningMistakes,
+        writingDrawn: state.writingDrawn,
+        writingRecords: state.writingRecords
       })
     }
   )
@@ -377,7 +410,9 @@ export function exportBackup(): string {
       study: state.study,
       customBooks: state.customBooks,
       listeningDrawn: state.listeningDrawn,
-      listeningMistakes: state.listeningMistakes
+      listeningMistakes: state.listeningMistakes,
+      writingDrawn: state.writingDrawn,
+      writingRecords: state.writingRecords
     },
     null,
     2
@@ -415,7 +450,9 @@ export function importBackup(text: string): ImportResult {
     study: (Object.keys(asRecord(data.study)).length > 0 ? data.study : EMPTY_STUDY) as StudyState,
     customBooks: Array.isArray(data.customBooks) ? (data.customBooks as CustomBook[]) : [],
     listeningDrawn: asRecord(data.listeningDrawn) as Record<string, string[]>,
-    listeningMistakes: Array.isArray(data.listeningMistakes) ? (data.listeningMistakes as ListeningMistake[]) : []
+    listeningMistakes: Array.isArray(data.listeningMistakes) ? (data.listeningMistakes as ListeningMistake[]) : [],
+    writingDrawn: asRecord(data.writingDrawn) as Record<string, string[]>,
+    writingRecords: Array.isArray(data.writingRecords) ? (data.writingRecords as WritingRecord[]) : []
   })
 
   return { ok: true, message: `导入成功：${Object.keys(progress).length} 条学习记录已恢复` }

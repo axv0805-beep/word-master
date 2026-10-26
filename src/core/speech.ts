@@ -182,6 +182,134 @@ export async function spellWord(word: string, options: SpeakOptions): Promise<vo
   await speakWithTts(clean, options.accent)
 }
 
+/* ------------------------------------------------------------------ */
+/* 听力材料：整段多句顺序朗读                                            */
+/* ------------------------------------------------------------------ */
+
+export interface SpeechLine {
+  text: string
+  /** 美音 / 英音，用来区分两个说话人 */
+  accent: 'us' | 'uk'
+  /** 音高，只在 Web Speech 生效；原生侧靠英音/美音区分角色 */
+  pitch?: number
+}
+
+export interface SpeechHandle {
+  /** true = 正常播完，false = 被打断或引擎不可用 */
+  done: Promise<boolean>
+  stop: () => void
+}
+
+let nativeLinesDone: ((ok: boolean) => void) | null = null
+
+/** 原生 TTS 播完最后一句时回调这里 */
+export function handleSpeechLinesDone(): void {
+  const resolve = nativeLinesDone
+  nativeLinesDone = null
+  resolve?.(true)
+}
+
+/** 按字数估个播放上限，避免引擎不回调时界面一直停在「正在播放」 */
+function estimateDuration(lines: { text: string }[]): number {
+  return lines.reduce((sum, line) => sum + line.text.length * 78, 0) + 2000
+}
+
+/**
+ * 依次朗读多行文本（听力材料）。
+ * 原生侧把整段丢给 TextToSpeech 用 QUEUE_ADD 排队，句子之间插静音，避免叠在一起；
+ * 网页侧用 speechSynthesis 的队列，最后一句话的 onend 视为播完。
+ */
+export function speakLines(lines: SpeechLine[], options: { rate?: number } = {}): SpeechHandle {
+  const rate = options.rate ?? 0.94
+  const cleaned = lines.map((line) => ({ ...line, text: line.text.trim() })).filter((line) => line.text.length > 0)
+
+  if (cleaned.length === 0) {
+    return { done: Promise.resolve(true), stop: () => {} }
+  }
+
+  const bridge = androidSpeech()
+  if (bridge?.speakLines) {
+    let finished = false
+    const done = new Promise<boolean>((resolve) => {
+      const settle = (ok: boolean) => {
+        if (finished) return
+        finished = true
+        nativeLinesDone = null
+        resolve(ok)
+      }
+      nativeLinesDone = settle
+      try {
+        bridge.speakLines!(
+          JSON.stringify(cleaned.map((line) => ({ t: line.text, l: line.accent === 'uk' ? 'en-GB' : 'en-US' }))),
+          rate
+        )
+      } catch {
+        settle(false)
+      }
+      setTimeout(() => settle(false), estimateDuration(cleaned))
+    })
+    return {
+      done,
+      stop: () => {
+        if (finished) return
+        finished = true
+        nativeLinesDone = null
+        bridge.stop?.()
+      }
+    }
+  }
+
+  if (!isSpeechSupported()) {
+    return { done: Promise.resolve(false), stop: () => {} }
+  }
+
+  const synth = window.speechSynthesis
+  let cancelled = false
+  const done = new Promise<boolean>((resolve) => {
+    try {
+      synth.cancel()
+      const utterances: SpeechSynthesisUtterance[] = []
+      cleaned.forEach((line, index) => {
+        const utterance = new SpeechSynthesisUtterance(line.text)
+        utterance.lang = line.accent === 'uk' ? 'en-GB' : 'en-US'
+        utterance.rate = rate
+        utterance.pitch = line.pitch ?? 1
+        const voice = pickVoice(line.accent)
+        if (voice) utterance.voice = voice
+        if (index === cleaned.length - 1) {
+          utterance.onend = () => resolve(!cancelled)
+          utterance.onerror = () => resolve(false)
+        }
+        utterances.push(utterance)
+      })
+      utterances.forEach((utterance) => synth.speak(utterance))
+      setTimeout(() => resolve(!cancelled), estimateDuration(cleaned))
+    } catch {
+      resolve(false)
+    }
+  })
+
+  return {
+    done,
+    stop: () => {
+      cancelled = true
+      try {
+        synth.cancel()
+      } catch {
+        /* 忽略 */
+      }
+    }
+  }
+}
+
+/**
+ * 原生播完最后一句话会调 window.__speechLinesDone，这里把入口挂到全局。
+ * 用属性赋值而不是 addInitScript：安卓壳的 WebView 每次加载都重新执行这段模块代码。
+ */
+if (typeof window !== 'undefined') {
+  ;(window as unknown as { __speechLinesDone?: () => void }).__speechLinesDone = handleSpeechLinesDone
+}
+
 /** 停止所有正在播放的发音 */
 export function stopSpeaking(): void {
   androidSpeech()?.stop()

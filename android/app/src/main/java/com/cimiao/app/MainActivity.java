@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.view.View;
 import android.view.Window;
 import android.webkit.JavascriptInterface;
@@ -28,6 +29,10 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebViewAssetLoader;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -63,6 +68,10 @@ public class MainActivity extends Activity {
     /** 每段最多重试几次（每次都从已下载的位置继续，不会从头再来） */
     private static final int SEGMENT_ATTEMPTS = 6;
     private static final String UPDATE_PREFS = "update-download";
+    /** 听力材料：句子之间插静音，避免两句黏在一起 */
+    private static final long SPEECH_GAP_MS = 520;
+    /** 整段播完时插一个空句，用它来通知网页播放结束 */
+    private static final String SPEECH_END_ID = "speech-end";
 
     private WebView webView;
     private TextToSpeech tts;
@@ -125,6 +134,23 @@ public class MainActivity extends Activity {
                 tts.setLanguage(Locale.US);
             }
         });
+        // 听力材料是一整段多句，需要知道「真的播完了」才能把界面切回可重播状态
+        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String utteranceId) {
+                // 不需要处理
+            }
+
+            @Override
+            public void onDone(String utteranceId) {
+                notifySpeechLinesDone(utteranceId);
+            }
+
+            @Override
+            public void onError(String utteranceId) {
+                notifySpeechLinesDone(utteranceId);
+            }
+        });
         webView.addJavascriptInterface(new SpeechBridge(), "AndroidSpeech");
         // 应用内更新：网页读站点上的 version.json，比 versionCode 之后调 installUpdate
         webView.addJavascriptInterface(new AppBridge(), "AndroidApp");
@@ -181,6 +207,52 @@ public class MainActivity extends Activity {
                 if (tts != null) tts.stop();
             });
         }
+
+        /**
+         * 整段朗读听力材料：json 是 [{"t": 文本, "l": "en-US"}]。
+         * 全部用 QUEUE_ADD 排队，句间插静音，最后再排一个空句当结束标记。
+         */
+        @JavascriptInterface
+        public void speakLines(final String json, final float rate) {
+            if (json == null || json.isEmpty()) return;
+            runOnUiThread(() -> {
+                if (tts == null) {
+                    notifySpeechLinesDone(SPEECH_END_ID);
+                    return;
+                }
+                tts.stop();
+                tts.setSpeechRate(rate > 0 ? rate : 0.94f);
+                try {
+                    JSONArray lines = new JSONArray(json);
+                    int spoken = 0;
+                    for (int i = 0; i < lines.length(); i++) {
+                        JSONObject line = lines.getJSONObject(i);
+                        String text = line.optString("t", "");
+                        String lang = line.optString("l", "en-US");
+                        if (text.isEmpty()) continue;
+                        tts.setLanguage("en-GB".equals(lang) ? Locale.UK : Locale.US);
+                        tts.speak(text, TextToSpeech.QUEUE_ADD, null, "line-" + i);
+                        tts.playSilentUtterance(SPEECH_GAP_MS, TextToSpeech.QUEUE_ADD, "gap-" + i);
+                        spoken++;
+                    }
+                    tts.playSilentUtterance(120, TextToSpeech.QUEUE_ADD, SPEECH_END_ID);
+                    if (spoken == 0) {
+                        notifySpeechLinesDone(SPEECH_END_ID);
+                    }
+                } catch (JSONException e) {
+                    notifySpeechLinesDone(SPEECH_END_ID);
+                }
+            });
+        }
+    }
+
+    /** 只有结束标记播完/出错时才通知网页，普通句子的回调直接忽略 */
+    private void notifySpeechLinesDone(final String utteranceId) {
+        if (!SPEECH_END_ID.equals(utteranceId)) return;
+        runOnUiThread(() -> {
+            if (webView == null) return;
+            webView.evaluateJavascript("window.__speechLinesDone && window.__speechLinesDone()", null);
+        });
     }
 
     /** 暴露给网页的应用信息桥与更新器：window.AndroidApp */

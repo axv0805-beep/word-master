@@ -9,6 +9,9 @@ import { MistakesPage } from './pages/Mistakes'
 import { StatsPage } from './pages/Stats'
 import { SettingsPage } from './pages/Settings'
 import { StudyPage } from './pages/Study'
+import { LearnPage } from './pages/Learn'
+import { ListeningPage } from './pages/Listening'
+import { ListeningSessionPage } from './pages/ListeningSession'
 import { OnboardingPage } from './pages/Onboarding'
 import { useAppStore } from './store/appStore'
 import { primeSpeech } from './core/speech'
@@ -38,6 +41,9 @@ export default function App() {
 
   const location = useLocation()
   const isStudy = location.pathname.startsWith('/study')
+  // 听力答题页自己有底部按钮，和导航栏抢位置会挤在一起
+  const isListeningSession = /^\/learn\/listening\/[^/]+\/[^/]+$/.test(location.pathname)
+  const hideChrome = isStudy || isListeningSession
   const onboarded = useAppStore((state) => state.settings.onboarded)
 
   // 首次进入先走引导：选词书 → 定每日目标 → 生成「多少天背完」的计划
@@ -68,7 +74,7 @@ export default function App() {
         <div
           key={location.pathname}
           className="page-shell"
-          style={{ paddingBottom: isStudy ? 0 : 'calc(78px + env(safe-area-inset-bottom, 0px))' }}
+          style={{ paddingBottom: hideChrome ? 0 : 'calc(78px + env(safe-area-inset-bottom, 0px))' }}
         >
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -77,10 +83,13 @@ export default function App() {
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/study" element={<StudyPage />} />
+            <Route path="/learn" element={<LearnPage />} />
+            <Route path="/learn/listening/:level" element={<ListeningPage />} />
+            <Route path="/learn/listening/:level/:mode" element={<ListeningSessionPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-        {isStudy ? null : <TabBar />}
+        {hideChrome ? null : <TabBar />}
       </div>
       {/* 冷启动时静默查一次更新，有新版本就弹窗（只有安卓壳里有原生桥） */}
       <UpdatePrompt />

@@ -15,7 +15,7 @@ export function TabBar() {
 
   const tabs: Tab[] = [
     { to: '/', label: '首页', icon: 'home' },
-    { to: '/books', label: '词书', icon: 'book' },
+    { to: '/learn', label: '学习', icon: 'headphones' },
     { to: '/mistakes', label: '错题', icon: 'alert', badge: mistakeCount },
     { to: '/stats', label: '统计', icon: 'chart' },
     { to: '/settings', label: '设置', icon: 'sliders' }

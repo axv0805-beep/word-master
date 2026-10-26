@@ -25,6 +25,8 @@ export type IconName =
   | 'sortAz'
   | 'sprout'
   | 'heart'
+  | 'headphones'
+  | 'pen'
 
 const PATHS: Record<IconName, string> = {
   home: 'M3 10.5 12 3l9 7.5M5.5 9.7V20a1 1 0 0 0 1 1H10v-5.6h4V21h3.5a1 1 0 0 0 1-1V9.7',
@@ -54,7 +56,9 @@ const PATHS: Record<IconName, string> = {
   shuffle: 'M17 4h4v4M21 4l-6.5 6.5M7 20H3v-4M3 20l6.5-6.5M17 20h4v-4M21 20l-6-6M3 4h4l6 6',
   sortAz: 'M4 7h10M4 12h7M4 17h4M17 8v9m0 0 3-3m-3 3-3-3',
   sprout: 'M12 21v-6.4M12 14c-4.2-.6-6.6-3.4-6.2-7.2 3.8-.4 6.6 2 6.2 7.2zM12 14c4.2-.6 6.6-3.4 6.2-7.2-3.8-.4-6.6 2-6.2 7.2z',
-  heart: 'M12 20.4 4.7 13a4.5 4.5 0 0 1 6.4-6.4l.9.9.9-.9A4.5 4.5 0 0 1 19.3 13z'
+  heart: 'M12 20.4 4.7 13a4.5 4.5 0 0 1 6.4-6.4l.9.9.9-.9A4.5 4.5 0 0 1 19.3 13z',
+  headphones: 'M4 15v-3a8 8 0 1 1 16 0v3M4 15a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2zM20 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2z',
+  pen: 'M4 20h4L19.3 8.7a2.1 2.1 0 0 0-3-3L5 17.2zM15.2 6.2l2.6 2.6'
 }
 
 export interface IconProps {

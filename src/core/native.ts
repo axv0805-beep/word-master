@@ -16,6 +16,8 @@ export const UPDATE_MANIFEST_URL = 'https://axv0805-beep.github.io/word-master/v
 export interface AndroidSpeechBridge {
   speak(text: string, lang: string, rate: number): void
   stop(): void
+  /** 整段朗读：json 是 [{t: 文本, l: 语言}]，播完回调 window.__speechLinesDone */
+  speakLines?(json: string, rate: number): void
 }
 
 export interface AndroidAppBridge {
@@ -173,6 +175,8 @@ export function requestUpdateCheck(callbacks: UpdateCallbacks): boolean {
 interface NativeWindow {
   AndroidSpeech?: AndroidSpeechBridge
   AndroidApp?: AndroidAppBridge
+  /** 原生 TTS 播完整段音频后回调（听力材料用） */
+  __speechLinesDone?: () => void
 }
 
 function nativeWindow(): NativeWindow | undefined {

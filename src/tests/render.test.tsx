@@ -347,12 +347,13 @@ describe('界面渲染冒烟测试', () => {
     expect(screen.getByText('可选 10 – 30 个（不超过每日目标 100 词）')).toBeTruthy()
   })
 
-  it('底部导航可以切换到词书、错题、统计、设置各页', async () => {
+  it('底部导航可以切换到学习、错题、统计、设置各页', async () => {
     renderApp('/')
 
-    fireEvent.click(screen.getByText('词书'))
-    await waitFor(() => expect(screen.getByText('选择词书与起点，开始一轮练习')).toBeTruthy())
-    expect(screen.getByText('随机抽取')).toBeTruthy()
+    // 词书已经不是底部 Tab 了，入口留在首页的书名卡片上
+    fireEvent.click(screen.getByText('学习'))
+    await waitFor(() => expect(screen.getByText('按考试题型练听力，材料都带原文与解析')).toBeTruthy())
+    expect(screen.getByText('四六级听力')).toBeTruthy()
 
     fireEvent.click(screen.getByText('错题'))
     await waitFor(() => expect(screen.getByText('错题本是空的')).toBeTruthy())

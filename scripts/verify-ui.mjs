@@ -257,7 +257,7 @@ await page.screenshot({ path: path.join(ARTIFACTS, 'ui-1-home.png') })
 
 console.log('\n[4/8] 检查底部导航与真实点击')
 for (const [label, file] of [
-  ['词书', 'ui-2-books.png'],
+  ['学习', 'ui-2-learn.png'],
   ['错题', 'ui-3-mistakes.png'],
   ['统计', 'ui-4-stats.png'],
   ['设置', 'ui-5-settings.png']

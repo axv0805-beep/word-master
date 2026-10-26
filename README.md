@@ -97,6 +97,8 @@ git push                  # 把版本号改动推上去
 
 只想要旧流程也可以：`npm run package:android` 打包 + 更新 `public/version.json`、把 APK 放到 `public/download/`，推上去照样生效。
 
+> 想把发版交给协作者、又不想把签名钥匙给他：把钥匙存成仓库 secret（`ANDROID_KEYSTORE_BASE64` 等），让他只点 Actions 里的 Run workflow 就行，步骤见 [协作者怎么发版](docs/协作者发版.md)。
+
 没有 Android SDK 的机器走云端：Actions →「打包安卓 APK 并发布更新」→ Run workflow，一次跑完「版本号 +1 → 打 APK → 发布 → 提交 → 部署 Pages」。签名用仓库 secret `ANDROID_KEYSTORE_BASE64` 等注入（不配的话每包签名都不同，只能全新安装），细节见 [打包与安装](docs/打包与安装.md)。
 
 > 页面资源是打包进 APK 的（见 `WebViewAssetLoader`），所以纯 Web 层的改动（界面、动画、文案）也得重新打包 APK 才会到手机上；只推 gh-pages 只影响浏览器访问的网页版。

@@ -6,7 +6,8 @@ name: 打包安卓 APK 并发布更新
 #   2. 构建 web，拷进 android/app/src/main/assets/www
 #   3. Gradle 打 APK
 #   4. 发布 APK 到 public/download/ 并改写 public/version.json
-#   5. 提交推送，再调用 deploy-pages.yml 让站点与新版本一起上线
+#   5. 用 gh 发 GitHub Release（APK + version.json 作为资源，应用内更新读这里）
+#   6. 提交推送，再调用 deploy-pages.yml 让站点与新版本一起上线
 #
 # 签名：配了 ANDROID_KEYSTORE_BASE64 等 secret 就用你自己的钥匙（覆盖安装才不会失败），
 # 没配时退回 runner 的临时 debug 签名——那种包只能全新安装，不能覆盖升级。
@@ -108,10 +109,16 @@ jobs:
       - name: 构建 APK
         run: gradle -p android assembleDebug --no-daemon --console=plain
 
-      - name: 发布 APK 与更新清单
+      - name: 发布 APK 与更新清单（gh-pages 副本）
         env:
           UPDATE_NOTES: ${{ inputs.notes }}
         run: node scripts/publish-android.mjs android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: 发布 GitHub Release（应用内更新读这里）
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          UPDATE_NOTES: ${{ inputs.notes }}
+        run: node scripts/publish-release.mjs
 
       - name: 提交并推送
         env:

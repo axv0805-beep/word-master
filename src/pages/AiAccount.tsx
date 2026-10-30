@@ -16,7 +16,7 @@ export function AiAccountPage() {
     try {
       const health = await aiRequest<{ setupRequired: boolean; setupAllowed: boolean }>('/health')
       setSetup(health.setupRequired && health.setupAllowed)
-      if (health.setupRequired && !health.setupAllowed) throw new Error('请管理员先在服务器本机完成初始化')
+      if (health.setupRequired && !health.setupAllowed) throw new Error('AI 服务尚未初始化管理员，请联系管理员')
       if (aiToken()) { const data = await aiRequest<{ user: AiUser; used: number }>('/auth/me'); setUser(data.user); setUsed(data.used) }
       else setUser(null)
     } catch (e) { setError((e as Error).message); setUser(null) }

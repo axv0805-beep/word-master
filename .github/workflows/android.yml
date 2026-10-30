@@ -24,6 +24,11 @@ on:
         required: false
         default: true
         type: boolean
+      publish:
+        description: 发布给所有用户（取消勾选则只构建签名测试包，作为 Actions 产物下载，先上真机验证）
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write # 需要提交 APK 与 version.json
@@ -99,6 +104,9 @@ jobs:
       - name: 构建 web 产物
         run: pnpm run build
 
+      - name: 校验 AI 后台地址已写入构建
+        run: node scripts/check-ai-base.mjs
+
       - name: 拷贝 web 产物到 APK 资源
         run: |
           rm -rf android/app/src/main/assets/www
@@ -109,18 +117,43 @@ jobs:
       - name: 构建 APK
         run: gradle -p android assembleDebug --no-daemon --console=plain
 
+      - name: 核对签名证书
+        env:
+          SIGNING_READY: ${{ steps.signing.outputs.ready }}
+          # 原签名证书 SHA-256；对不上的包无法覆盖安装已有版本，用户会被迫卸载丢数据
+          EXPECTED_CERT_SHA256: 9b95f93da79d22b5ff1fdc66d6fefabac50070eea1fc15fa3e9f4720dacc9eaf
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          actual=$("$apksigner" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)
+          echo "签名证书 SHA-256：$actual"
+          if [ "$SIGNING_READY" = "true" ] && [ "$actual" != "$EXPECTED_CERT_SHA256" ]; then
+            echo "::error::签名证书与原签名不一致，停止发布"; exit 1
+          fi
+
+      - name: 上传测试包（不发布）
+        if: ${{ !inputs.publish }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cimiao-${{ steps.version.outputs.versionName }}-test-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
       - name: 发布 APK 与更新清单（gh-pages 副本）
+        if: ${{ inputs.publish }}
         env:
           UPDATE_NOTES: ${{ inputs.notes }}
         run: node scripts/publish-android.mjs android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: 发布 GitHub Release（应用内更新读这里）
+        if: ${{ inputs.publish }}
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
           UPDATE_NOTES: ${{ inputs.notes }}
-        run: node scripts/publish-release.mjs
+        # runner 上没有本地打包的 release/词芽-安卓.apk，必须显式指向 Gradle 产物
+        run: node scripts/publish-release.mjs --apk android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: 提交并推送
+        if: ${{ inputs.publish }}
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
@@ -143,6 +176,7 @@ jobs:
 
   deploy:
     needs: build
+    if: ${{ inputs.publish }}
     permissions:
       contents: read
       pages: write

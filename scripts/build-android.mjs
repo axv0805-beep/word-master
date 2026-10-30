@@ -89,6 +89,8 @@ if (!skipBuild) {
     shell: process.platform === 'win32'
   })
 }
+// 没带统一 AI 后台地址的包装到手机上 AI 必然连不上（1.2.0 就是这样），宁可在这里停下
+run(process.execPath, ['scripts/check-ai-base.mjs'])
 
 console.log('[3/6] 复制安卓工程到 ASCII 暂存区')
 fs.rmSync(stage, { recursive: true, force: true })

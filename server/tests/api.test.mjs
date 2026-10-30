@@ -111,3 +111,38 @@ test('rejects internal endpoints, malformed answers and fabricated source quotes
   q.options = ['A', 'B', 'C', 'D']
   assert.equal(validateResult('quiz', { questions: Array(5).fill(q) }, { words: 'benefit' }).questions.length, 5)
 })
+
+test('behind a reverse proxy, HTTP setup is closed and only the CLI path creates the first admin', async (t) => {
+  const app = createApp({ encryptionKey: randomBytes(32).toString('hex'), allowSetup: false, trustProxy: true, origins: ['https://appassets.androidplatform.net', 'http://127.0.0.1:*'] })
+  const url = await listen(app.server)
+  t.after(() => app.close())
+  const headers = { 'Content-Type': 'application/json', 'X-Forwarded-For': '203.0.113.9', Origin: 'https://appassets.androidplatform.net' }
+  const password = randomBytes(24).toString('hex')
+  const health = await fetch(url + '/api/health', { headers })
+  assert.equal(health.headers.get('access-control-allow-origin'), 'https://appassets.androidplatform.net')
+  assert.deepEqual(await health.json(), { ok: true, service: 'word-master-ai', setupRequired: true, setupAllowed: false })
+  const setup = await fetch(url + '/api/auth/setup', { method: 'POST', headers, body: JSON.stringify({ username: 'attacker', password }) })
+  assert.equal(setup.status, 403)
+  const preflight = await fetch(url + '/api/auth/login', { method: 'OPTIONS', headers: { ...headers, Origin: 'https://evil.example' } })
+  assert.equal(preflight.status, 403)
+  const desktop = await fetch(url + '/api/health', { headers: { Origin: 'http://127.0.0.1:51234' } })
+  assert.equal(desktop.headers.get('access-control-allow-origin'), 'http://127.0.0.1:51234')
+  assert.equal((await fetch(url + '/api/health', { headers: { Origin: 'http://127.0.0.1:5.evil.example' } })).status, 403)
+  await app.createUser({ username: 'owner', password }, 'admin')
+  await assert.rejects(app.createUser({ username: 'second', password }, 'admin'), /管理员已创建/)
+  const login = await fetch(url + '/api/auth/login', { method: 'POST', headers, body: JSON.stringify({ username: 'owner', password }) })
+  assert.equal(login.status, 200)
+  const { token } = await login.json()
+  await app.setPassword('owner', randomBytes(24).toString('hex'))
+  assert.equal((await fetch(url + '/api/auth/me', { headers: { ...headers, Authorization: `Bearer ${token}` } })).status, 401)
+})
+
+test('a loopback request carrying forwarding headers is not treated as local', async (t) => {
+  const app = createApp({ encryptionKey: randomBytes(32).toString('hex'), allowSetup: true })
+  const url = await listen(app.server)
+  t.after(() => app.close())
+  const body = JSON.stringify({ username: 'admin', password: randomBytes(24).toString('hex') })
+  const proxied = await fetch(url + '/api/auth/setup', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.7' }, body })
+  assert.equal(proxied.status, 403)
+  assert.equal((await fetch(url + '/api/auth/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })).status, 201)
+})

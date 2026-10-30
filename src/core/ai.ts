@@ -23,26 +23,37 @@ export function saveAiToken(value: string): void {
   else sessionStorage.removeItem(TOKEN_KEY)
 }
 
-/** This is the application's backend URL, never a model provider URL or secret. */
-const API_BASE = (import.meta.env.VITE_AI_API_BASE_URL || '').replace(/\/$/, '')
+/** This is the application's backend URL, never a model provider URL or secret. Production builds read .env.production. */
+export const AI_API_BASE = (import.meta.env.VITE_AI_API_BASE_URL || '').trim().replace(/\/$/, '')
+/** Packaged shells (Android WebView assets, Electron static server) have no /api of their own. */
+function packagedWithoutBackend(): boolean {
+  if (AI_API_BASE) return false
+  try { return location.hostname === 'appassets.androidplatform.net' || location.protocol === 'file:' } catch { return false }
+}
 export async function aiRequest<T>(route: string, body?: unknown, method = body == null ? 'GET' : 'POST'): Promise<T> {
+  if (packagedWithoutBackend()) throw new Error('此安装包未配置 AI 后台地址，请在「设置 → 检查更新」升级到最新版；背词、听力和离线写作不受影响')
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 110000)
   try {
-    const response = await fetch(`${API_BASE}/api${route}`, {
+    const response = await fetch(`${AI_API_BASE}/api${route}`, {
       method, signal: controller.signal, cache: 'no-store',
       headers: { ...(body == null ? {} : { 'Content-Type': 'application/json' }), ...(aiToken() ? { Authorization: `Bearer ${aiToken()}` } : {}) },
       body: body == null ? undefined : JSON.stringify(body)
     })
-    const data = await response.json().catch(() => { throw new Error('AI 服务未启动或地址配置不正确') })
+    // A non-JSON answer means something other than this backend replied (static page, proxy error, gateway 502).
+    const data = await response.json().catch(() => { throw new Error(`AI 后台暂时不可用（HTTP ${response.status}），请稍后重试；如持续出现请联系管理员`) })
     if (!response.ok) {
       if (response.status === 401) saveAiToken('')
-      throw new Error(data.error || 'AI 请求失败')
+      throw new Error(data.error || `AI 请求失败（HTTP ${response.status}）`)
     }
     return data as T
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw new Error('请求等待超时，请到生成记录查看结果，避免重复提交')
-    if (error instanceof TypeError) throw new Error('无法连接 AI 后台，请检查服务和网络')
+    if (error instanceof TypeError) {
+      throw new Error(typeof navigator !== 'undefined' && navigator.onLine === false
+        ? '当前没有网络，AI 功能需要联网；背词、听力和离线写作仍可使用'
+        : '无法连接 AI 后台，请检查网络后重试')
+    }
     throw error
   } finally { clearTimeout(timer) }
 }

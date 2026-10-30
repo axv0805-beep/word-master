@@ -4,6 +4,7 @@ server/data/
 .env
 .env.*
 !.env.example
+!.env.production
 
 # 构建产物
 dist/

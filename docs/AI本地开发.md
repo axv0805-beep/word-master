@@ -68,7 +68,10 @@ AI 生成记录独立于原有背词统计，不会把作文或 AI 题目计入�
 | `AI_ALLOWED_ORIGINS` | 本机 3180、5173 的 localhost 与 127.0.0.1 来源；自定义时用逗号分隔 |
 | `AI_ALLOW_PRIVATE_ENDPOINTS` | `false`；开发时设为 `true` 可连接本机或内网模型服务 |
 | `AI_GLOBAL_DAILY_LIMIT` | `1000`，整个服务每日成功及进行中请求上限 |
-| `VITE_AI_API_BASE_URL` | 空，即同源 `/api`；远程部署或 APK 构建时填写本应用后台的 HTTPS 根地址，不能填模型厂商地址或密钥 |
+| `AI_TRUST_PROXY` | `false`；放在 Caddy/nginx 后面时设为 `true`：按 `X-Forwarded-For` 限流，并彻底关闭网页初始化管理员（改用 `server/admin.mjs`） |
+| `VITE_AI_API_BASE_URL` | 构建时值。开发服务器为空（走 Vite 代理）；生产构建读取仓库里的 `.env.production`（统一后台 `https://word.xiaoxin8.com`）。只能填本应用后台根地址，不能填模型厂商地址或密钥 |
+
+`AI_ALLOWED_ORIGINS` 支持 `http://127.0.0.1:*` 这种只放开端口的写法，用于桌面版（静态服务每次随机端口）。线上部署见 `docs/AI后台部署.md`。
 
 退出后台进程后再备份整个数据目录，数据库和加密密钥需要同时保留。启动代码不会自动读取 `.env`，可使用 PowerShell 环境变量或 `node --env-file=<文件> server/index.mjs` 注入。
 

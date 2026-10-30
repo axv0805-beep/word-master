@@ -37,7 +37,7 @@ async function readBody(req) {
 
 export function createApp({ database = ':memory:', encryptionKey, allowPrivate = false, allowSetup = false,
   origins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3180', 'http://127.0.0.1:3180'],
-  staticDir, globalDailyLimit = 1000 } = {}) {
+  staticDir, globalDailyLimit = 1000, trustProxy = false, recoverPending = true } = {}) {
   const key = Buffer.from(encryptionKey ?? '', 'hex')
   if (key.length !== 32) throw new Error('AI_ENCRYPTION_KEY must be 64 hexadecimal characters')
   const db = new DatabaseSync(database)
@@ -47,7 +47,8 @@ export function createApp({ database = ':memory:', encryptionKey, allowPrivate =
     CREATE TABLE IF NOT EXISTS providers(id TEXT PRIMARY KEY, config TEXT NOT NULL, secret TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS generations(id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL, fingerprint TEXT NOT NULL, feature TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, input TEXT NOT NULL, result TEXT, usage TEXT, status TEXT NOT NULL, error TEXT, day TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE(user_id, request_key));`)
   // A process interruption has an unknown upstream outcome: mark failed; never blindly rebill/retry.
-  db.prepare("UPDATE generations SET status='failed',error='服务重启中断了生成，请重新发起' WHERE status='pending'").run()
+  // The admin CLI opens the same database while the service runs, so it must skip this.
+  if (recoverPending) db.prepare("UPDATE generations SET status='failed',error='服务重启中断了生成，请重新发起' WHERE status='pending'").run()
   function encrypt(secret) {
     const iv = randomBytes(12); const cipher = createCipheriv('aes-256-gcm', key, iv)
     const body = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()])
@@ -92,9 +93,18 @@ export function createApp({ database = ':memory:', encryptionKey, allowPrivate =
     catch { throw new ApiError(409, '用户名已存在') }
     return user
   }
+  async function setPassword(username, password) {
+    const user = db.prepare('SELECT * FROM users WHERE username=?').get(textField(username, '用户名', 40, 3).toLowerCase())
+    if (!user) throw new ApiError(404, '用户不存在')
+    db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(await passwordHash(textField(password, '密码', 128, 10)), user.id)
+    db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id)
+    return publicUser(user)
+  }
+  // Behind a reverse proxy every socket is loopback; the proxy-set X-Forwarded-For (rightmost hop) is the client.
+  const clientAddress = (req) => trustProxy ? (req.headers['x-forwarded-for']?.split(',').at(-1).trim() || req.socket.remoteAddress) : req.socket.remoteAddress
   const attempts = new Map()
   function throttle(req) {
-    const addr = req.socket.remoteAddress
+    const addr = clientAddress(req)
     const now = Date.now()
     for (const [id, bucket] of attempts) if (now - bucket.start > 60000) attempts.delete(id)
     if (attempts.size > 5000) throw new ApiError(429, '请求过于频繁')
@@ -102,7 +112,12 @@ export function createApp({ database = ':memory:', encryptionKey, allowPrivate =
     attempts.set(addr, bucket)
     if (++bucket.count > 15) throw new ApiError(429, '操作过于频繁，请一分钟后再试')
   }
-  const isLocal = (req) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress)
+  // "http://127.0.0.1:*" admits the desktop shell, whose static server picks a random port each launch.
+  const allowedOrigin = (origin) => origins.includes(origin) ||
+    origins.some((o) => o.endsWith(':*') && origin.startsWith(o.slice(0, -1)) && /^\d{1,5}$/.test(origin.slice(o.length - 1)))
+  // Proxied requests are never local, even though the proxy itself connects from loopback.
+  const isLocal = (req) => !trustProxy && !req.headers['x-forwarded-for'] && !req.headers.forwarded &&
+    ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress)
   const server = createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff')
     res.setHeader('Cache-Control', 'no-store')
@@ -118,15 +133,15 @@ export function createApp({ database = ':memory:', encryptionKey, allowPrivate =
         res.writeHead(200, { 'Content-Type': types[path.extname(target)] ?? 'application/octet-stream' }); res.end(bytes); return
       }
       const origin = req.headers.origin
-      if (origin && !origins.includes(origin)) throw new ApiError(403, '当前网页来源未被允许')
+      if (origin && !allowedOrigin(origin)) throw new ApiError(403, '当前网页来源未被允许')
       if (origin) { res.setHeader('Access-Control-Allow-Origin', origin); res.setHeader('Vary', 'Origin') }
       if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization'); res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS'); res.writeHead(204); res.end(); return }
       if (route === '/api/health' && req.method === 'GET') {
-        send(200, { ok: true, setupRequired: !db.prepare('SELECT id FROM users LIMIT 1').get(), setupAllowed: allowSetup && isLocal(req) }); return
+        send(200, { ok: true, service: 'word-master-ai', setupRequired: !db.prepare('SELECT id FROM users LIMIT 1').get(), setupAllowed: allowSetup && isLocal(req) }); return
       }
       if (route === '/api/auth/setup' && req.method === 'POST') {
         throttle(req)
-        if (!allowSetup || !isLocal(req)) throw new ApiError(403, '管理员初始化仅限本机')
+        if (!allowSetup || !isLocal(req)) throw new ApiError(403, '管理员初始化仅限服务器本机或命令行')
         const user = await createUser(await readBody(req), 'admin'); send(201, issueToken(user)); return
       }
       if (route === '/api/auth/login' && req.method === 'POST') {
@@ -236,5 +251,5 @@ export function createApp({ database = ':memory:', encryptionKey, allowPrivate =
       throw new ApiError(404, '接口不存在')
     } catch (error) { send(error instanceof ApiError ? error.status : 500, { error: error instanceof ApiError ? error.message : '服务暂时不可用，请稍后重试' }) }
   })
-  return { server, db, close: () => new Promise((resolve) => { server.close(() => { db.close(); resolve() }); server.closeIdleConnections() }) }
+  return { server, db, createUser, setPassword, close: () => new Promise((resolve) => { server.close(() => { db.close(); resolve() }); server.closeIdleConnections() }) }
 }

@@ -39,6 +39,11 @@ let browser
 try {
   browser = await chromium.launch({ executablePath, headless: true })
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  // Production builds call the deployed backend cross-origin; answer those calls from this local app instead.
+  await context.route(/^https:\/\/[^/]+\/api\//, async (route) => {
+    const target = route.request().url().replace(/^https:\/\/[^/]+/, base)
+    await route.fulfill({ response: await route.fetch({ url: target }) })
+  })
   const page = await context.newPage()
   page.on('response', async (response) => { if (response.url().endsWith('/api/generations') && response.request().method() === 'POST' && response.status() !== 200) console.log('Generation error:', response.status(), await response.text()) })
   const errors = []; page.on('pageerror', (error) => errors.push(error.message))
